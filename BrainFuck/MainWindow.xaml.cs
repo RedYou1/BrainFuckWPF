@@ -31,7 +31,7 @@ namespace BrainFuck
 
             string file;
 #pragma warning disable CS0162 // Code inaccessible détecté
-            switch (5)
+            switch (6)
             {
                 case 0:
                     file = ReadAllText("HelloWorld.txt");
@@ -50,6 +50,9 @@ namespace BrainFuck
                     break;
                 case 5:
                     file = ReadAllText("cat2.txt");
+                    break;
+                case 6:
+                    file = ReadAllText("IDE.bf");
                     break;
             }
 #pragma warning restore CS0162 // Code inaccessible détecté
