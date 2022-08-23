@@ -21,10 +21,14 @@
                 <Button x:Name="btnOpen" Content="Open" Click="btnOpen_Click"/>
                 <Button x:Name="btnSave" Content="Save" Click="btnSave_Click"/>
                 <Button x:Name="btnCompile" Content="Compile" Click="btnCompile_Click" />
+                <Button x:Name="btnPlay" Content="Play" Click="btnPlay_Click"/>
+                <Button x:Name="btnStop" Content="Stop" IsEnabled="False" Click="btnStop_Click"/>
             </ToolBar>
         </ToolBarTray>
-        <Grid Grid.Row="2">
-            <TextBox x:Name="txtEditor" AcceptsReturn="True"/>
-        </Grid>
+        <TabControl Grid.Row="2" Name="screen">
+            <TabItem Header="Code">
+                <TextBox x:Name="txtEditor" AcceptsReturn="True"/>
+            </TabItem>
+        </TabControl>
     </Grid>
 </Window>

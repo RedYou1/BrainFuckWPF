@@ -1,20 +1,7 @@
 ﻿using Microsoft.Win32;
-using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
-using Compiler;
 using Path = System.IO.Path;
 
 namespace IDE
@@ -35,6 +22,9 @@ namespace IDE
                 txtEditor.Text = File.ReadAllText(value);
             }
         }
+
+        public TabItem? PlayTab { get; set; }
+
         public MainWindow()
         {
             InitializeComponent();
@@ -69,6 +59,39 @@ namespace IDE
             sw.Close();
         }
 
+        public void Compile()
+        {
+            Save();
+            Compiler.Compiler.Compile(FilePath, Path.ChangeExtension(FilePath, "bf"));
+        }
+
+        public void Play()
+        {
+            if (PlayTab is not null)
+            {
+                Stop();
+            }
+            Compile();
+            PlayTab = new TabItem()
+            {
+                Header = "Play",
+                Content = new BrainFuck.Interpreter(true, Path.ChangeExtension(FilePath, "bf"))
+            };
+            screen.Items.Add(PlayTab);
+            screen.SelectedItem = PlayTab;
+            btnStop.IsEnabled = true;
+        }
+
+        public void Stop()
+        {
+            if (PlayTab is not null)
+            {
+                screen.Items.Remove(PlayTab);
+                PlayTab = null;
+                btnStop.IsEnabled = false;
+            }
+        }
+
         private void btnOpen_Click(object sender, RoutedEventArgs e)
         {
             OpenFile();
@@ -81,8 +104,17 @@ namespace IDE
 
         private void btnCompile_Click(object sender, RoutedEventArgs e)
         {
-            Save();
-            Compiler.Compiler.Compile(FilePath, Path.ChangeExtension(FilePath, "bf"));
+            Compile();
+        }
+
+        private void btnPlay_Click(object sender, RoutedEventArgs e)
+        {
+            Play();
+        }
+
+        private void btnStop_Click(object sender, RoutedEventArgs e)
+        {
+            Stop();
         }
     }
 }

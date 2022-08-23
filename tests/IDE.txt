@@ -1,4 +1,3 @@
 char a
 add a 65
 call print a
-call print a

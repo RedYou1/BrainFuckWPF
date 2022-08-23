@@ -57,10 +57,6 @@ namespace BrainFuck
             bool success = byte.TryParse(Message.Text, out value);
             if (success)
             {
-                if (value == 0)
-                {
-                    return;
-                }
                 CurrentMessage.Content = Text + (char)value;
                 Message.Text = "";
                 if (Text.Length == MaxLength)

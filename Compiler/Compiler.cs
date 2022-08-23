@@ -95,7 +95,7 @@ namespace Compiler
                         Move(Memory[args[1]]);
                         StreamWriter.Write(
                             new string('+',
-                                int.Parse(args[2])));
+                                byte.Parse(args[2])));
                         break;
                     }
                 case "sub":
@@ -107,7 +107,7 @@ namespace Compiler
                         Move(Memory[args[1]]);
                         StreamWriter.Write(
                             new string('-',
-                                int.Parse(args[2])));
+                                byte.Parse(args[2])));
                         break;
                     }
                 case "call":
