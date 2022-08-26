@@ -1,8 +1,16 @@
-﻿namespace Compiler
+﻿using static Compiler.Compiler;
+
+namespace Compiler
 {
-    public interface BFFunction
+    public class BFFunction
     {
+        public BFFunction(int numberArgs, Func<Compiler, string[], ReturnCode> action)
+        {
+            NumberArgs = numberArgs;
+            Action = action;
+        }
+
         public int NumberArgs { get; }
-        public void Call(Compiler comp, params string[] args);
+        public Func<Compiler, string[], ReturnCode> Action { get; }
     }
 }

@@ -1,6 +1,4 @@
-﻿using Compiler.BFFunctions;
-
-namespace Compiler
+﻿namespace Compiler
 {
     public class Compiler
     {
@@ -29,21 +27,19 @@ namespace Compiler
             return returnCode;
         }
 
-        public Dictionary<string, BFFunction> BFFunctions { get; } = new()
-        {
-            { "print", new BFFPrint() }
-        };
+        public Dictionary<string, BFFunction> BFFunctions { get; } = new();
 
         public Compiler(StreamWriter streamWriter)
         {
-            this.StreamWriter = streamWriter;
+            StreamWriter = streamWriter;
+            Memory.PushStack();
         }
 
-
         public StreamWriter StreamWriter { get; }
-        public Dictionary<string, short> Memory { get; } = new();
-        public short nextMemory { get; protected set; } = 0;
+        public Memory Memory { get; } = new();
         public short actualPtr { get; protected set; } = 0;
+
+        public bool MultipleLine = true;
         private static string[] getFileCommands(string file)
         {
             List<string> values = new();
@@ -131,6 +127,10 @@ namespace Compiler
                 {
                     return status;
                 }
+                if (comp.MultipleLine)
+                {
+                    comp.StreamWriter.Write('\n');
+                }
             }
             return ReturnCode.OK;
         }
@@ -146,6 +146,20 @@ namespace Compiler
             }
         }
 
+        public byte GetValue(string value)
+        {
+            byte result = 0;
+            if (byte.TryParse(value, out result))
+            {
+                return result;
+            }
+            else if (value.Length == 1)
+            {
+                return (byte)value[0];
+            }
+            throw new ArgumentException();
+        }
+
         private ReturnCode compileLine(string[] args)
         {
             switch (args[0])
@@ -158,8 +172,14 @@ namespace Compiler
                         {
                             return ReturnCode.BadArgs;
                         }
-                        Memory.Add(args[1], nextMemory);
-                        nextMemory++;
+                        Memory.Add(args[1]);
+                        if (args.Length >= 3)
+                        {
+                            Move(Memory[args[1]]);
+                            StreamWriter.Write(
+                                new string('+',
+                                    GetValue(args[2])));
+                        }
                         break;
                     }
                 case "add":
@@ -171,7 +191,7 @@ namespace Compiler
                         Move(Memory[args[1]]);
                         StreamWriter.Write(
                             new string('+',
-                                byte.Parse(args[2])));
+                                GetValue(args[2])));
                         break;
                     }
                 case "sub":
@@ -183,7 +203,7 @@ namespace Compiler
                         Move(Memory[args[1]]);
                         StreamWriter.Write(
                             new string('-',
-                                byte.Parse(args[2])));
+                                GetValue(args[2])));
                         break;
                     }
                 case "print":
@@ -208,13 +228,36 @@ namespace Compiler
                         short address = Memory[args[1]];
                         Move(address);
                         StreamWriter.Write('[');
+                        Memory.PushStack();
                         ReturnCode r = Compile(getFileCommands(new string(args[2].Skip(1).ToArray()).Replace((char)1, ' ')), this);
+                        Memory.PopStack();
                         if (r != ReturnCode.OK)
                         {
                             return r;
                         }
                         Move(address);
                         StreamWriter.Write(']');
+                        break;
+                    }
+                case "func":
+                    {
+                        if (args.Length < 3 || args.Length % 2 == 0)
+                        {
+                            return ReturnCode.BadArgs;
+                        }
+                        string[] to = new string[(args.Length - 3) / 2];
+                        for (int i = 3; i < args.Length - 1; i += 2)
+                        {
+                            to[(i - 3) / 2] = args[i];
+                        }
+                        BFFunctions.Add(args[1], new BFFunction(args.Length / 2 - 1,
+                            (Compiler comp, string[] args2) =>
+                        {
+                            comp.Memory.PushFunc(args2, to);
+                            ReturnCode r = Compile(getFileCommands(new string(args[args.Length - 1].Skip(1).ToArray()).Replace((char)1, ' ')), this);
+                            comp.Memory.PopFunc();
+                            return r;
+                        }));
                         break;
                     }
                 case "call":
@@ -228,7 +271,11 @@ namespace Compiler
                         {
                             return ReturnCode.BadArgs;
                         }
-                        func.Call(this, args.Skip(2).ToArray());
+                        ReturnCode r = func.Action(this, args.Skip(2).ToArray());
+                        if (r != ReturnCode.OK)
+                        {
+                            return r;
+                        }
                         break;
                     }
                 default:
