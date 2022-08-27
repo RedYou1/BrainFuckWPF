@@ -1,4 +1,6 @@
-﻿namespace Compiler
+﻿using System.Text.RegularExpressions;
+
+namespace Compiler
 {
     public class Compiler
     {
@@ -52,6 +54,7 @@
                 if (currentChar == '\\')
                 {
                     i++;
+                    currentValue += currentChar;
                     currentValue += file[i];
                     continue;
                 }
@@ -77,13 +80,14 @@
 
                 if (currentChar == '{')
                 {
-                    while (currentValue.Last() == ' ')
+                    while (currentValue.Last() == (char)1)
                     {
                         currentValue = currentValue.Substring(0, currentValue.Length - 1);
                     }
                     if (stack.Count == 0)
                     {
-                        currentValue += " ;";
+                        currentValue += (char)1;
+                        currentValue += ";";
                     }
                     else
                     {
@@ -112,6 +116,18 @@
                     throw new FileLoadException("Content Exception");
                 }
 
+                if (currentChar == '\'' || stacktop == '"')
+                {
+                    if (stacktop == currentChar)
+                    {
+                        stack.Pop();
+                    }
+                    else
+                    {
+                        stack.Push(currentChar);
+                    }
+                }
+
                 if (currentChar == ';' && stacktop != '{')
                 {
                     values.Add(currentValue);
@@ -125,11 +141,15 @@
                         currentValue.Last() == '}'
                         )))
                 {
-                    if (currentChar == ' ' && currentValue.Last() == ' ')
+                    if (currentChar == ' ' && currentValue.Last() == (char)1)
                     {
                         continue;
                     }
                     if (stacktop == '{' && currentChar == ' ')
+                    {
+                        currentValue += (char)2;
+                    }
+                    else if (stacktop != '\'' && stacktop != '"' && currentChar == ' ')
                     {
                         currentValue += (char)1;
                     }
@@ -146,7 +166,7 @@
         {
             foreach (string line in commands)
             {
-                string[] args = line.Split(' ');
+                string[] args = line.Split((char)1);
                 ReturnCode status = comp.compileLine(args, garbage);
                 if (status != ReturnCode.OK)
                 {
@@ -178,9 +198,35 @@
             {
                 return result;
             }
-            else if (value.Length == 1)
+            else if (Regex.Match(value, @"^'\\{0,1}.'$").Success)
             {
-                return (byte)value[0];
+                value = value.Substring(1, value.Length - 2);
+                if (value.Length == 1)
+                {
+                    return (byte)value[0];
+                }
+                else
+                {
+                    switch (value[1])
+                    {
+                        case 'a':
+                            return (byte)'\a';
+                        case 'b':
+                            return (byte)'\b';
+                        case 'f':
+                            return (byte)'\f';
+                        case 'n':
+                            return (byte)'\n';
+                        case 'r':
+                            return (byte)'\r';
+                        case 't':
+                            return (byte)'\t';
+                        case 'v':
+                            return (byte)'\v';
+                        default:
+                            return (byte)value[1];
+                    }
+                }
             }
             throw new ArgumentException();
         }
@@ -197,7 +243,7 @@
                         {
                             return ReturnCode.BadArgs;
                         }
-                        Memory.Add(args[1], this);
+                        Memory.Add(args[1]);
                         if (args.Length >= 3)
                         {
                             Move(Memory[args[1]]);
@@ -250,7 +296,7 @@
                         {
                             return ReturnCode.BadArgs;
                         }
-                        Memory.Add(args[1], this);
+                        Memory.Add(args[1]);
                         Move(Memory[args[1]]);
                         StreamWriter.Write(',');
                         break;
@@ -265,7 +311,7 @@
                         Move(address);
                         StreamWriter.Write('[');
                         Memory.PushStack();
-                        ReturnCode r = Compile(getFileCommands(new string(args[2].Skip(1).ToArray()).Replace((char)1, ' ')), this, true);
+                        ReturnCode r = Compile(getFileCommands(new string(args[2].Skip(1).ToArray()).Replace((char)2, ' ')), this, true);
                         Memory.PopStack(true);
                         if (r != ReturnCode.OK)
                         {
@@ -284,12 +330,12 @@
                         Move(Memory[args[1]]);
                         StreamWriter.Write('[');
                         Memory.PushStack();
-                        ReturnCode r = Compile(getFileCommands(new string(args[2].Skip(1).ToArray()).Replace((char)1, ' ')), this, garbage);
+                        ReturnCode r = Compile(getFileCommands(new string(args[2].Skip(1).ToArray()).Replace((char)2, ' ')), this, garbage);
                         if (r != ReturnCode.OK)
                         {
                             return r;
                         }
-                        Memory.Add(" if ", this);
+                        Memory.Add(" if ");
                         Move(Memory[" if "]);
                         Memory.PopStack(garbage);
                         StreamWriter.Write(']');
@@ -310,7 +356,7 @@
                             (Compiler comp, string[] args2, bool garbage) =>
                         {
                             comp.Memory.PushFunc(args2, to);
-                            ReturnCode r = Compile(getFileCommands(new string(args[args.Length - 1].Skip(1).ToArray()).Replace((char)1, ' ')), this, garbage);
+                            ReturnCode r = Compile(getFileCommands(new string(args[args.Length - 1].Skip(1).ToArray()).Replace((char)2, ' ')), this, garbage);
                             comp.Memory.PopFunc(garbage);
                             return r;
                         }));

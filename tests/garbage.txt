@@ -1,6 +1,6 @@
 func printA
 {
-    byte a a;
+    byte a 'a';
     print a;
 }
 call printA;
@@ -11,3 +11,9 @@ while a
     sub a 1;
 }
 call printA;
+byte newLine '\n';
+byte quote '\'';
+print newLine;
+print quote;
+call printA;
+print quote;

@@ -1,12 +1,12 @@
-byte H H;
-byte e e;
-byte l l;
-byte o o;
-byte s 32;
-byte W W;
-byte r r;
-byte d d;
-byte ! !;
+byte H 'H';
+byte e 'e';
+byte l 'l';
+byte o 'o';
+byte s ' ';
+byte W 'W';
+byte r 'r';
+byte d 'd';
+byte ! '!';
 print H e l l o s W o r l d !;
 func testFunc byte w
 {
@@ -22,7 +22,7 @@ while i
 }
 func recurcif
 {
-    byte a B;
+    byte a 'B';
     if a
     {
         sub a 1;

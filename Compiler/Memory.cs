@@ -1,4 +1,6 @@
-﻿namespace Compiler
+﻿using System.Linq;
+
+namespace Compiler
 {
     public class Memory
     {
@@ -7,6 +9,9 @@
         private Stack<List<string>> name = new();
 
         private Dictionary<string, short> current => memory.Peek();
+
+        private List<short> garbages = new();
+        private List<short> unUsed = new();
 
         private Compiler Compiler;
 
@@ -18,15 +23,65 @@
 
         public bool ContainName(string name) => current.ContainsKey(name);
 
-        public void Add(string name, Compiler comp)
+        public void Add(string name)
         {
             if (nextMemory == 29999)
             {
-                throw new Exception("BrainFuck out of memory");
+                if (unUsed.Any())
+                {
+                    current.Add(name, unUsed.First());
+                    unUsed.RemoveAt(0);
+                    this.name.Peek().Add(name);
+                }
+                else if (garbages.Any())
+                {
+                    short address = garbages.First();
+                    current.Add(name, address);
+                    garbages.RemoveAt(0);
+                    this.name.Peek().Add(name);
+                    Compiler.Move(address);
+                    Compiler.StreamWriter.Write("[-]");
+                    while (unUsed.Contains((short)(nextMemory - 1)))
+                    {
+                        unUsed.Remove(--nextMemory);
+                    }
+                }
+                else
+                    throw new Exception("BrainFuck out of memory");
             }
-            current.Add(name, nextMemory);
-            this.name.Peek().Add(name);
-            nextMemory++;
+            else
+            {
+                current.Add(name, nextMemory);
+                this.name.Peek().Add(name);
+                nextMemory++;
+            }
+        }
+
+        void remove(bool garbage, string name)
+        {
+            short address = current[name];
+            if (garbage)
+            {
+                Compiler.Move(address);
+                Compiler.StreamWriter.Write("[-]");
+                if (address == nextMemory - 1)
+                {
+                    nextMemory--;
+                    while (unUsed.Contains((short)(nextMemory - 1)))
+                    {
+                        unUsed.Remove(--nextMemory);
+                    }
+                }
+                else
+                {
+                    unUsed.Add(address);
+                }
+            }
+            else
+            {
+                garbages.Add(address);
+            }
+            current.Remove(name);
         }
 
         public void PushFunc(string[] from, string[] to)
@@ -58,12 +113,7 @@
             {
                 foreach (string name in names)
                 {
-                    if (garbage)
-                    {
-                        Compiler.Move(current[name]);
-                        Compiler.StreamWriter.Write("[-]");
-                    }
-                    current.Remove(name);
+                    remove(garbage, name);
                 }
             }
             else
