@@ -12,7 +12,7 @@ namespace BrainFuck
             InitializeComponent();
             string filePath;
 #pragma warning disable CS0162 // Code inaccessible détecté
-            switch (6)
+            switch (0)
             {
                 case 0:
                     filePath = "HelloWorld.txt";

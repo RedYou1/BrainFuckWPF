@@ -1,0 +1,13 @@
+func printA
+{
+    byte a a;
+    print a;
+}
+call printA;
+byte a 5;
+while a
+{
+    call printA;
+    sub a 1;
+}
+call printA;

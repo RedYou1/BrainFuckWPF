@@ -20,7 +20,7 @@
             ReturnCode returnCode = ReturnCode.OK;
             using (StreamWriter sw = File.CreateText(resultPath))
             {
-                returnCode = Compile(getFileCommands(File.ReadAllText(sourcePath)), new Compiler(sw));
+                returnCode = Compile(getFileCommands(File.ReadAllText(sourcePath)), new Compiler(sw), false);
                 sw.Close();
             }
 
@@ -32,11 +32,12 @@
         public Compiler(StreamWriter streamWriter)
         {
             StreamWriter = streamWriter;
+            Memory = new(this);
             Memory.PushStack();
         }
 
         public StreamWriter StreamWriter { get; }
-        public Memory Memory { get; } = new();
+        public Memory Memory { get; }
         public short actualPtr { get; protected set; } = 0;
 
         public bool MultipleLine = true;
@@ -76,8 +77,19 @@
 
                 if (currentChar == '{')
                 {
+                    while (currentValue.Last() == ' ')
+                    {
+                        currentValue = currentValue.Substring(0, currentValue.Length - 1);
+                    }
+                    if (stack.Count == 0)
+                    {
+                        currentValue += " ;";
+                    }
+                    else
+                    {
+                        currentValue += "{";
+                    }
                     stack.Push(currentChar);
-                    currentValue += " ;";
                     continue;
                 }
 
@@ -91,6 +103,10 @@
                             values.Add(currentValue);
                             currentValue = "";
                         }
+                        else
+                        {
+                            currentValue += "}";
+                        }
                         continue;
                     }
                     throw new FileLoadException("Content Exception");
@@ -102,8 +118,17 @@
                     currentValue = "";
                 }
                 else if (currentChar > (char)31 &&
-                    !((currentChar == ' ' || currentChar == '\t') && stacktop == '{' && currentValue.Last() == ';'))
+                    !((currentChar == ' ' || currentChar == '\t') && stacktop == '{' &&
+                        (
+                        currentValue.Last() == ';' ||
+                        currentValue.Last() == '{' ||
+                        currentValue.Last() == '}'
+                        )))
                 {
+                    if (currentChar == ' ' && currentValue.Last() == ' ')
+                    {
+                        continue;
+                    }
                     if (stacktop == '{' && currentChar == ' ')
                     {
                         currentValue += (char)1;
@@ -117,12 +142,12 @@
             return values.ToArray();
         }
 
-        private static ReturnCode Compile(string[] commands, Compiler comp)
+        private static ReturnCode Compile(string[] commands, Compiler comp, bool garbage)
         {
             foreach (string line in commands)
             {
                 string[] args = line.Split(' ');
-                ReturnCode status = comp.compileLine(args);
+                ReturnCode status = comp.compileLine(args, garbage);
                 if (status != ReturnCode.OK)
                 {
                     return status;
@@ -160,7 +185,7 @@
             throw new ArgumentException();
         }
 
-        private ReturnCode compileLine(string[] args)
+        private ReturnCode compileLine(string[] args, bool garbage)
         {
             switch (args[0])
             {
@@ -172,7 +197,7 @@
                         {
                             return ReturnCode.BadArgs;
                         }
-                        Memory.Add(args[1]);
+                        Memory.Add(args[1], this);
                         if (args.Length >= 3)
                         {
                             Move(Memory[args[1]]);
@@ -219,6 +244,17 @@
                         }
                         break;
                     }
+                case "input":
+                    {
+                        if (args.Length < 2)
+                        {
+                            return ReturnCode.BadArgs;
+                        }
+                        Memory.Add(args[1], this);
+                        Move(Memory[args[1]]);
+                        StreamWriter.Write(',');
+                        break;
+                    }
                 case "while":
                     {
                         if (args.Length < 3)
@@ -229,13 +265,33 @@
                         Move(address);
                         StreamWriter.Write('[');
                         Memory.PushStack();
-                        ReturnCode r = Compile(getFileCommands(new string(args[2].Skip(1).ToArray()).Replace((char)1, ' ')), this);
-                        Memory.PopStack();
+                        ReturnCode r = Compile(getFileCommands(new string(args[2].Skip(1).ToArray()).Replace((char)1, ' ')), this, true);
+                        Memory.PopStack(true);
                         if (r != ReturnCode.OK)
                         {
                             return r;
                         }
                         Move(address);
+                        StreamWriter.Write(']');
+                        break;
+                    }
+                case "if":
+                    {
+                        if (args.Length < 3)
+                        {
+                            return ReturnCode.BadArgs;
+                        }
+                        Move(Memory[args[1]]);
+                        StreamWriter.Write('[');
+                        Memory.PushStack();
+                        ReturnCode r = Compile(getFileCommands(new string(args[2].Skip(1).ToArray()).Replace((char)1, ' ')), this, garbage);
+                        if (r != ReturnCode.OK)
+                        {
+                            return r;
+                        }
+                        Memory.Add(" if ", this);
+                        Move(Memory[" if "]);
+                        Memory.PopStack(garbage);
                         StreamWriter.Write(']');
                         break;
                     }
@@ -251,11 +307,11 @@
                             to[(i - 3) / 2] = args[i];
                         }
                         BFFunctions.Add(args[1], new BFFunction(args.Length / 2 - 1,
-                            (Compiler comp, string[] args2) =>
+                            (Compiler comp, string[] args2, bool garbage) =>
                         {
                             comp.Memory.PushFunc(args2, to);
-                            ReturnCode r = Compile(getFileCommands(new string(args[args.Length - 1].Skip(1).ToArray()).Replace((char)1, ' ')), this);
-                            comp.Memory.PopFunc();
+                            ReturnCode r = Compile(getFileCommands(new string(args[args.Length - 1].Skip(1).ToArray()).Replace((char)1, ' ')), this, garbage);
+                            comp.Memory.PopFunc(garbage);
                             return r;
                         }));
                         break;
@@ -271,7 +327,7 @@
                         {
                             return ReturnCode.BadArgs;
                         }
-                        ReturnCode r = func.Action(this, args.Skip(2).ToArray());
+                        ReturnCode r = func.Action(this, args.Skip(2).ToArray(), garbage);
                         if (r != ReturnCode.OK)
                         {
                             return r;

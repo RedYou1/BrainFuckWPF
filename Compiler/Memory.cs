@@ -8,15 +8,22 @@
 
         private Dictionary<string, short> current => memory.Peek();
 
-        public Memory()
+        private Compiler Compiler;
+
+        public Memory(Compiler comp)
         {
             memory.Push(new());
+            Compiler = comp;
         }
 
         public bool ContainName(string name) => current.ContainsKey(name);
 
-        public void Add(string name)
+        public void Add(string name, Compiler comp)
         {
+            if (nextMemory == 29999)
+            {
+                throw new Exception("BrainFuck out of memory");
+            }
             current.Add(name, nextMemory);
             this.name.Peek().Add(name);
             nextMemory++;
@@ -34,21 +41,28 @@
                 dict.Add(to[i], current[from[i]]);
             }
             memory.Push(dict);
+            PushStack();
         }
 
-        public void PopFunc()
+        public void PopFunc(bool garbage)
         {
+            PopStack(garbage);
             memory.Pop();
         }
 
         public void PushStack() => name.Push(new());
-        public void PopStack()
+        public void PopStack(bool garbage)
         {
             List<string>? names;
             if (name.TryPop(out names))
             {
                 foreach (string name in names)
                 {
+                    if (garbage)
+                    {
+                        Compiler.Move(current[name]);
+                        Compiler.StreamWriter.Write("[-]");
+                    }
                     current.Remove(name);
                 }
             }

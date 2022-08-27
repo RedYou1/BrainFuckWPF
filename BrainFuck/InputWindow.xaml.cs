@@ -12,7 +12,6 @@ namespace BrainFuck
         public InputWindow(int maxLength)
         {
             InitializeComponent();
-            Message.MaxLength = maxLength;
             MaxLength = maxLength;
         }
 
@@ -39,6 +38,7 @@ namespace BrainFuck
 
         private void prev_Click(object sender, RoutedEventArgs e)
         {
+            finish.Visibility = Visibility.Hidden;
             if (IsString || Text.Length == 0)
             {
                 nextPage(false);
@@ -62,6 +62,7 @@ namespace BrainFuck
                 if (Text.Length == MaxLength)
                 {
                     Message.IsEnabled = false;
+                    finish.Visibility = Visibility.Visible;
                 }
             }
             else
@@ -73,6 +74,7 @@ namespace BrainFuck
                     if (Text.Length == MaxLength)
                     {
                         Message.IsEnabled = false;
+                        finish.Visibility = Visibility.Visible;
                         break;
                     }
                 }
@@ -93,8 +95,8 @@ namespace BrainFuck
             messageGird.Visibility = next ? Visibility.Visible : Visibility.Hidden;
             prev.Visibility = next ? Visibility.Visible : Visibility.Hidden;
             this.next.Visibility = next && !IsString ? Visibility.Visible : Visibility.Hidden;
-            finish.Visibility = next ? Visibility.Visible : Visibility.Hidden;
-
+            finish.Visibility = next && IsString ? Visibility.Visible : Visibility.Hidden;
+            Message.MaxLength = next && IsString ? MaxLength : 0;
             if (next)
             {
                 if (IsString)

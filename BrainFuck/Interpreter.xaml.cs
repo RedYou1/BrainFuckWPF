@@ -88,6 +88,19 @@ namespace BrainFuck
             List<Action<Interpreter>> actions = new();
             for (; strPtr < actionsFile.Length; strPtr++)
             {
+                string strAt = actionsFile.Substring(strPtr);
+                if (strAt.Length >= 3 &&
+                    strAt[0] == '[' &&
+                    (strAt[1] == '-' || actionsFile[1] == '+') &&
+                    strAt[2] == ']')
+                {
+                    actionPtr++;
+                    actions.Add((mainWindow) =>
+                        mainWindow.BrainFuckBack.Set(0));
+                    strPtr += 2;
+                    continue;
+                }
+
                 switch (actionsFile[strPtr])
                 {
                     case '>':
