@@ -26,8 +26,15 @@
             </ToolBar>
         </ToolBarTray>
         <TabControl Grid.Row="2" Name="screen">
-            <TabItem Header="Code">
-                <TextBox x:Name="txtEditor" AcceptsReturn="True"/>
+            <TabItem Header="Code" Selector.IsSelected="True">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                    <TextBox x:Name="txtEditor" AcceptsReturn="True"/>
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="Compiled">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <TextBox x:Name="txtEditorCompiled" AcceptsReturn="True" TextWrapping="WrapWithOverflow" IsEnabled="False"/>
+                </ScrollViewer>
             </TabItem>
         </TabControl>
     </Grid>

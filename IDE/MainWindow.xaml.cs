@@ -20,6 +20,10 @@ namespace IDE
                 Properties.Settings.Default.FilePath = value;
                 Properties.Settings.Default.Save();
                 txtEditor.Text = File.ReadAllText(value);
+                if (File.Exists(Path.ChangeExtension(value, "bf")))
+                {
+                    txtEditorCompiled.Text = File.ReadAllText(Path.ChangeExtension(value, "bf"));
+                }
             }
         }
 
@@ -105,6 +109,7 @@ namespace IDE
         private void btnCompile_Click(object sender, RoutedEventArgs e)
         {
             Compile();
+            txtEditorCompiled.Text = File.ReadAllText(Path.ChangeExtension(FilePath, "bf"));
         }
 
         private void btnPlay_Click(object sender, RoutedEventArgs e)

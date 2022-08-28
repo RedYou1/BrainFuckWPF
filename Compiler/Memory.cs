@@ -40,7 +40,7 @@ namespace Compiler
                     garbages.RemoveAt(0);
                     this.name.Peek().Add(name);
                     Compiler.Move(address);
-                    Compiler.StreamWriter.Write("[-]");
+                    Compiler.CodeWriter.Write("[-]", "set to 0");
                     while (unUsed.Contains((short)(nextMemory - 1)))
                     {
                         unUsed.Remove(--nextMemory);
@@ -63,7 +63,7 @@ namespace Compiler
             if (garbage)
             {
                 Compiler.Move(address);
-                Compiler.StreamWriter.Write("[-]");
+                Compiler.CodeWriter.Write("[-]", "set to 0");
                 if (address == nextMemory - 1)
                 {
                     nextMemory--;

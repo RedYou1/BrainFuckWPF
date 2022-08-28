@@ -33,16 +33,15 @@ namespace Compiler
 
         public Compiler(StreamWriter streamWriter)
         {
-            StreamWriter = streamWriter;
+            CodeWriter = new(streamWriter);
             Memory = new(this);
             Memory.PushStack();
         }
 
-        public StreamWriter StreamWriter { get; }
+        public CodeWriter CodeWriter { get; }
         public Memory Memory { get; }
         public short actualPtr { get; protected set; } = 0;
 
-        public bool MultipleLine = true;
         private static string[] getFileCommands(string file)
         {
             List<string> values = new();
@@ -172,10 +171,6 @@ namespace Compiler
                 {
                     return status;
                 }
-                if (comp.MultipleLine)
-                {
-                    comp.StreamWriter.Write('\n');
-                }
             }
             return ReturnCode.OK;
         }
@@ -184,9 +179,9 @@ namespace Compiler
         {
             if (moveTo != actualPtr)
             {
-                StreamWriter.Write(
+                CodeWriter.Write(
                     new string(moveTo > actualPtr ? '>' : '<',
-                    Math.Abs(moveTo - actualPtr)));
+                    Math.Abs(moveTo - actualPtr)), $"move to {moveTo}");
                 actualPtr = moveTo;
             }
         }
@@ -247,9 +242,10 @@ namespace Compiler
                         if (args.Length >= 3)
                         {
                             Move(Memory[args[1]]);
-                            StreamWriter.Write(
+                            byte value = GetValue(args[2]);
+                            CodeWriter.Write(
                                 new string('+',
-                                    GetValue(args[2])));
+                                    value), $"adding {value}");
                         }
                         break;
                     }
@@ -260,9 +256,10 @@ namespace Compiler
                             return ReturnCode.BadArgs;
                         }
                         Move(Memory[args[1]]);
-                        StreamWriter.Write(
+                        byte value = GetValue(args[2]);
+                        CodeWriter.Write(
                             new string('+',
-                                GetValue(args[2])));
+                                value), $"adding {value}");
                         break;
                     }
                 case "sub":
@@ -272,9 +269,10 @@ namespace Compiler
                             return ReturnCode.BadArgs;
                         }
                         Move(Memory[args[1]]);
-                        StreamWriter.Write(
+                        byte value = GetValue(args[2]);
+                        CodeWriter.Write(
                             new string('-',
-                                GetValue(args[2])));
+                                value), $"substracting {value}");
                         break;
                     }
                 case "print":
@@ -286,7 +284,7 @@ namespace Compiler
                         foreach (string arg in args.Skip(1))
                         {
                             Move(Memory[arg]);
-                            StreamWriter.Write('.');
+                            CodeWriter.Write(".", "print");
                         }
                         break;
                     }
@@ -298,7 +296,7 @@ namespace Compiler
                         }
                         Memory.Add(args[1]);
                         Move(Memory[args[1]]);
-                        StreamWriter.Write(',');
+                        CodeWriter.Write(",", "input");
                         break;
                     }
                 case "while":
@@ -309,7 +307,7 @@ namespace Compiler
                         }
                         short address = Memory[args[1]];
                         Move(address);
-                        StreamWriter.Write('[');
+                        CodeWriter.Write("[", $"check {address}");
                         Memory.PushStack();
                         ReturnCode r = Compile(getFileCommands(new string(args[2].Skip(1).ToArray()).Replace((char)2, ' ')), this, true);
                         Memory.PopStack(true);
@@ -318,7 +316,7 @@ namespace Compiler
                             return r;
                         }
                         Move(address);
-                        StreamWriter.Write(']');
+                        CodeWriter.Write("]", $"end of {address}");
                         break;
                     }
                 case "if":
@@ -327,8 +325,9 @@ namespace Compiler
                         {
                             return ReturnCode.BadArgs;
                         }
-                        Move(Memory[args[1]]);
-                        StreamWriter.Write('[');
+                        short address = Memory[args[1]];
+                        Move(address);
+                        CodeWriter.Write("[", $"check {address}");
                         Memory.PushStack();
                         ReturnCode r = Compile(getFileCommands(new string(args[2].Skip(1).ToArray()).Replace((char)2, ' ')), this, garbage);
                         if (r != ReturnCode.OK)
@@ -338,7 +337,7 @@ namespace Compiler
                         Memory.Add(" if ");
                         Move(Memory[" if "]);
                         Memory.PopStack(garbage);
-                        StreamWriter.Write(']');
+                        CodeWriter.Write("]", $"end of {address}");
                         break;
                     }
                 case "func":
