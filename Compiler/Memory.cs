@@ -23,7 +23,7 @@ namespace Compiler
 
         public bool ContainName(string name) => current.ContainsKey(name);
 
-        public void Add(string name)
+        public void Add(CodeWriter codeWriter, string name)
         {
             if (nextMemory == 29999)
             {
@@ -39,8 +39,8 @@ namespace Compiler
                     current.Add(name, address);
                     garbages.RemoveAt(0);
                     this.name.Peek().Add(name);
-                    Compiler.Move(address);
-                    Compiler.CodeWriter.Write("[-]", "set to 0");
+                    Compiler.Move(codeWriter, address);
+                    codeWriter.Write("[-]", "set to 0");
                     while (unUsed.Contains((short)(nextMemory - 1)))
                     {
                         unUsed.Remove(--nextMemory);
@@ -57,13 +57,13 @@ namespace Compiler
             }
         }
 
-        void remove(bool garbage, string name)
+        void remove(CodeWriter codeWriter, bool garbage, string name)
         {
             short address = current[name];
             if (garbage)
             {
-                Compiler.Move(address);
-                Compiler.CodeWriter.Write("[-]", "set to 0");
+                Compiler.Move(codeWriter, address);
+                codeWriter.Write("[-]", "set to 0");
                 if (address == nextMemory - 1)
                 {
                     nextMemory--;
@@ -99,21 +99,21 @@ namespace Compiler
             PushStack();
         }
 
-        public void PopFunc(bool garbage)
+        public void PopFunc(CodeWriter codeWriter, bool garbage)
         {
-            PopStack(garbage);
+            PopStack(codeWriter, garbage);
             memory.Pop();
         }
 
         public void PushStack() => name.Push(new());
-        public void PopStack(bool garbage)
+        public void PopStack(CodeWriter codeWriter, bool garbage)
         {
             List<string>? names;
             if (name.TryPop(out names))
             {
                 foreach (string name in names)
                 {
-                    remove(garbage, name);
+                    remove(codeWriter, garbage, name);
                 }
             }
             else

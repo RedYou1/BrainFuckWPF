@@ -1,8 +1,10 @@
 ﻿using Microsoft.Win32;
 using System.IO;
+using System.Linq;
+using System.Reflection.Emit;
 using System.Windows;
 using System.Windows.Controls;
-using Path = System.IO.Path;
+using System.Windows.Media;
 
 namespace IDE
 {
@@ -11,88 +13,167 @@ namespace IDE
     /// </summary>
     public partial class MainWindow : Window
     {
-        public string FilePath
+        public BFProj bFProj;
+
+        private bool changingText = false;
+
+        private string path;
+        public string Path
         {
-            get => (string)lblFilePath.Content;
+            get => path;
             set
             {
-                lblFilePath.Content = value;
-                Properties.Settings.Default.FilePath = value;
+                path = value;
+                Properties.Settings.Default.Path = value;
                 Properties.Settings.Default.Save();
-                txtEditor.Text = File.ReadAllText(value);
-                if (File.Exists(Path.ChangeExtension(value, "bf")))
-                {
-                    txtEditorCompiled.Text = File.ReadAllText(Path.ChangeExtension(value, "bf"));
-                }
             }
         }
-
-        public TabItem? PlayTab { get; set; }
 
         public MainWindow()
         {
             InitializeComponent();
-            if (Properties.Settings.Default.FilePath == "" || !File.Exists(Properties.Settings.Default.FilePath))
+            if (Properties.Settings.Default.Path == "" || !Directory.Exists(Properties.Settings.Default.Path))
             {
                 OpenFile();
             }
             else
             {
-                FilePath = Properties.Settings.Default.FilePath;
+                Path = Properties.Settings.Default.Path;
             }
+            bFProj = BFProj.Parse(Path + "/BFProj.json")!;
+            UpdateFiles();
         }
 
         public void OpenFile()
         {
-            OpenFileDialog openFileDialog = new OpenFileDialog();
-            if (openFileDialog.ShowDialog() == true)
+            while (true)
             {
-                FilePath = openFileDialog.FileName;
-            }
-            else if (FilePath == "")
-            {
-                Close();
+                try
+                {
+                    OpenFileDialog openFileDialog = new OpenFileDialog
+                    {
+                        CheckFileExists = true,
+                        CheckPathExists = true,
+                        ValidateNames = false
+                    };
+                    if (openFileDialog.ShowDialog() == true)
+                    {
+                        Path = Directory.GetParent(openFileDialog.FileName)!.FullName;
+                        bFProj = BFProj.Parse(Path + "/BFProj.json")!;
+                        return;
+                    }
+                }
+                catch
+                {
+
+                }
             }
         }
 
-        public void Save()
+        public void ChangeFile(string path)
         {
-            StreamWriter sw = File.CreateText(FilePath);
-            sw.Write(txtEditor.Text);
-            sw.Flush();
-            sw.Close();
+            if (!bFProj.Files.ContainsKey(path))
+            {
+                bFProj.Files.Add(path, new BFProj.TextFile { modified = false, text = File.ReadAllText(path) });
+            }
+            bFProj.CurrentFile = path;
+            changingText = true;
+            txtEditor.Text = bFProj.Files[bFProj.CurrentFile].text;
+            changingText = false;
+            UpdateActiveFiles();
+        }
+
+        public void AddActiveFile(string path, bool modified)
+        {
+            FileTab fileTab = new FileTab(System.IO.Path.GetFileName(path) + (modified ? '*' : ""));
+            fileTab.name.Background = bFProj.CurrentFile == path ? Brushes.Green : SystemColors.ControlBrush;
+            fileTab.name.Click += (sender, args) =>
+            {
+                ChangeFile(path);
+            };
+            fileTab.close.Click += (sender, args) =>
+            {
+                if (bFProj.Files[path].modified && MessageBox.Show("This file is unsaved.\nClose it?", "Question", MessageBoxButton.YesNo, MessageBoxImage.Warning)
+                    == MessageBoxResult.No)
+                {
+                    return;
+                }
+                bFProj.Files.Remove(path);
+                if (bFProj.CurrentFile == path)
+                {
+                    bFProj.CurrentFile = bFProj.Files.Any() ? bFProj.Files.First().Key : null;
+                    changingText = true;
+                    txtEditor.Text = bFProj.CurrentFile != null ? bFProj.Files[bFProj.CurrentFile].text : "";
+                    changingText = false;
+                }
+                UpdateActiveFiles();
+            };
+            Grid.SetColumn(fileTab, filesTabes.ColumnDefinitions.Count);
+            filesTabes.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            filesTabes.Children.Add(fileTab);
+        }
+
+        public void UpdateActiveFiles()
+        {
+            filesTabes.Children.Clear();
+            filesTabes.ColumnDefinitions.Clear();
+            foreach (var file in bFProj.Files)
+            {
+                AddActiveFile(file.Key, file.Value.modified);
+            }
         }
 
         public void Compile()
         {
-            Save();
-            Compiler.Compiler.Compile(FilePath, Path.ChangeExtension(FilePath, "bf"));
+            bFProj.SaveAllFile();
+            UpdateActiveFiles();
+            Compiler.Compiler.Debug = chckDebug.IsChecked ?? true;
+            Compiler.Compiler.Compile(Path + "/src/", Path + "/src/" + bFProj.StartingFile, Path + "/build.bf");
         }
 
         public void Play()
         {
-            if (PlayTab is not null)
-            {
-                Stop();
-            }
             Compile();
-            PlayTab = new TabItem()
-            {
-                Header = "Play",
-                Content = new BrainFuck.Interpreter(true, Path.ChangeExtension(FilePath, "bf"))
-            };
-            screen.Items.Add(PlayTab);
-            screen.SelectedItem = PlayTab;
+            playScreen.Content = new BrainFuck.Interpreter(Compiler.Compiler.Debug, true, Path + "/build.bf");
+            playScreen.IsSelected = true;
             btnStop.IsEnabled = true;
         }
 
         public void Stop()
         {
-            if (PlayTab is not null)
+            if (playScreen.Content is not null)
             {
-                screen.Items.Remove(PlayTab);
-                PlayTab = null;
+                textTab.IsSelected = true;
+                playScreen.Content = null;
                 btnStop.IsEnabled = false;
+            }
+        }
+
+        private void AppendFile(UIElement element)
+        {
+            files.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            Grid.SetRow(element, files.Children.Count);
+            files.Children.Add(element);
+        }
+
+        private void UpdateFiles()
+        {
+            files.RowDefinitions.Clear();
+            files.Children.Clear();
+            if (!Directory.Exists(Path) && !File.Exists(Path))
+            {
+                AppendFile(new System.Windows.Controls.Label { Content = "This path doesn't exists." });
+                return;
+            }
+            foreach (string path in Directory.EnumerateFiles(Path + "/src/").OrderBy(p => p.EndsWith(".b") ? -2 : p.EndsWith(".f") ? -1 : 0))
+            {
+                var file = new System.Windows.Controls.Label { Content = System.IO.Path.GetFileName(path) };
+                void mouseDown(object sender, RoutedEventArgs args)
+                {
+                    ChangeFile(path);
+                }
+                file.MouseDown += new System.Windows.Input.MouseButtonEventHandler(mouseDown);
+                AppendFile(file);
             }
         }
 
@@ -101,15 +182,34 @@ namespace IDE
             OpenFile();
         }
 
+        private void btnNewFile_Click(object sender, RoutedEventArgs e)
+        {
+            NewFile nf = new NewFile();
+            if (nf.ShowDialog() == true &&
+                (nf.fileName.Text.EndsWith(".b") || nf.fileName.Text.EndsWith(".f")) &&
+                !File.Exists(Path + "/src/" + nf.fileName.Text))
+            {
+                File.CreateText(Path + "/src/" + nf.fileName.Text).Dispose();
+                UpdateFiles();
+                ChangeFile(Path + "/src/" + nf.fileName.Text);
+            }
+        }
+
         private void btnSave_Click(object sender, RoutedEventArgs e)
         {
-            Save();
+            bFProj.SaveFile();
+            UpdateActiveFiles();
+        }
+
+        private void btnSaveAll_Click(object sender, RoutedEventArgs e)
+        {
+            bFProj.SaveAllFile();
+            UpdateActiveFiles();
         }
 
         private void btnCompile_Click(object sender, RoutedEventArgs e)
         {
             Compile();
-            txtEditorCompiled.Text = File.ReadAllText(Path.ChangeExtension(FilePath, "bf"));
         }
 
         private void btnPlay_Click(object sender, RoutedEventArgs e)
@@ -120,6 +220,42 @@ namespace IDE
         private void btnStop_Click(object sender, RoutedEventArgs e)
         {
             Stop();
+        }
+
+        private void fileViewer_FileSelected(bool changeDir, string path)
+        {
+            if (changeDir)
+            {
+                Path = path;
+                return;
+            }
+            if (File.Exists(path))
+                ChangeFile(path);
+            else
+                Path = path;
+        }
+
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            if (bFProj.Files.Any((a) => a.Value.modified))
+            {
+                if (MessageBox.Show("You have unsaved files.\nClose Application?", "Question", MessageBoxButton.YesNo, MessageBoxImage.Warning)
+                    == MessageBoxResult.No)
+                {
+                    e.Cancel = true;
+                    return;
+                }
+            }
+
+            bFProj.Save(Path + "/BFProj.json");
+        }
+
+        private void txtEditor_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (changingText)
+                return;
+            bFProj.Files[bFProj.CurrentFile!] = new BFProj.TextFile { modified = true, text = txtEditor.Text };
+            UpdateActiveFiles();
         }
     }
 }

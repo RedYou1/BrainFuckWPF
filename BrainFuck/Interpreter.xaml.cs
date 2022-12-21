@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -17,10 +18,12 @@ namespace BrainFuck
     {
         private Action<Interpreter>[] actions;
         private TextBlock[] values = new TextBlock[9];
+        private bool debug;
         private bool autoplay;
 
-        public Interpreter(bool autoplay, string filePath)
+        public Interpreter(bool debug, bool autoplay, string filePath)
         {
+            this.debug = debug;
             this.autoplay = autoplay;
             InitializeComponent();
 
@@ -201,7 +204,7 @@ namespace BrainFuck
                     {
                         Dispatcher.Invoke(() =>
                             actions[CurrentActionsPtr].Invoke(this));
-                        Thread.Sleep(10);
+                        Thread.Sleep(debug ? 10 : 0);
                     }
                     Dispatcher.Invoke(() =>
                         Ended?.Invoke(this, new()));

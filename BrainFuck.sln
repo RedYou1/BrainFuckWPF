@@ -17,7 +17,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{20418527
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Compiler", "Compiler\Compiler.csproj", "{C3E40518-7583-4E08-A10B-2A4F74D80B98}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IDE", "IDE\IDE.csproj", "{429C625A-B806-4FF8-94E8-3F2405266565}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IDE", "IDE\IDE.csproj", "{429C625A-B806-4FF8-94E8-3F2405266565}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{73C7AF04-694F-4961-B546-0C09DDD9714A}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

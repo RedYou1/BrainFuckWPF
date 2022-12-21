@@ -8,27 +8,14 @@ byte r 'r';
 byte d 'd';
 byte ! '!';
 print H e l l o s W o r l d !;
-func testFunc byte w
-{
-    add w 1;
-}
-input in;
-print in;
+
+call funcIf;
+byte testIf 1;
+print testIf;
+
 byte i 1;
 while i
 {
     print i;
     call testFunc i;
 }
-func funcIf
-{
-    byte a 'B';
-    if a
-    {
-        sub a 1;
-    }
-    print a;
-}
-call funcIf;
-byte testIf 1;
-print testIf;

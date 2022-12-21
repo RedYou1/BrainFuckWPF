@@ -37,7 +37,7 @@ namespace BrainFuck
                     break;
             }
 #pragma warning restore CS0162 // Code inaccessible détecté
-            Interpreter interpreter = new Interpreter(true, $@"..\..\..\tests\{filePath}");
+            Interpreter interpreter = new Interpreter(true, true, $@"..\..\..\tests\{filePath}");
             interpreter.Ended += (sender, args) => MessageBox.Show("ended");
             grid.Children.Add(interpreter);
         }

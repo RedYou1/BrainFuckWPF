@@ -26,12 +26,12 @@ namespace IDE.Properties {
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("")]
-        public string FilePath {
+        public string Path {
             get {
-                return ((string)(this["FilePath"]));
+                return ((string)(this["Path"]));
             }
             set {
-                this["FilePath"] = value;
+                this["Path"] = value;
             }
         }
     }

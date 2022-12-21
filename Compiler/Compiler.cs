@@ -1,28 +1,53 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.IO;
+using System.Text.RegularExpressions;
 
 namespace Compiler
 {
     public class Compiler
     {
+        private static string[] EXTENSIONS = new string[] { "*.b", "*.f" };
+        public static bool Debug = true;
+
         public enum ReturnCode
         {
             OK,
             SourceDontExists,
             ResultAlreadyExists,
             BadCommand,
-            BadArgs
+            BadArgs,
+            WrongStart
         }
-        public static ReturnCode Compile(string sourcePath, string resultPath)
+        public static ReturnCode Compile(string sourcePath, string startingFile, string resultPath)
         {
-            if (!File.Exists(sourcePath))
+            if (!Directory.Exists(sourcePath) && !File.Exists(sourcePath))
             {
                 return ReturnCode.SourceDontExists;
             }
 
             ReturnCode returnCode = ReturnCode.OK;
+
+            Compiler comp = new Compiler(null);
+
+            if (!File.Exists(sourcePath))
+            {
+                foreach (string path in
+                    EXTENSIONS.SelectMany(filter => Directory.EnumerateFiles(sourcePath, filter)
+                        .Where(path => path != startingFile)))
+                {
+                    if (!File.Exists(path))
+                    {
+                        return ReturnCode.SourceDontExists;
+                    }
+                    returnCode = Compile(getFileCommands(File.ReadAllText(path)), comp, false);
+                    if (returnCode != ReturnCode.OK)
+                        return returnCode;
+                }
+            }
+
             using (StreamWriter sw = File.CreateText(resultPath))
             {
-                returnCode = Compile(getFileCommands(File.ReadAllText(sourcePath)), new Compiler(sw), false);
+                comp.CodeWriter = new CodeWriter(sw);
+                returnCode = Compile(getFileCommands(File.ReadAllText(startingFile)), comp, false);
                 sw.Close();
             }
 
@@ -31,14 +56,15 @@ namespace Compiler
 
         public Dictionary<string, BFFunction> BFFunctions { get; } = new();
 
-        public Compiler(StreamWriter streamWriter)
+        public Compiler(StreamWriter? streamWriter)
         {
-            CodeWriter = new(streamWriter);
+            if (streamWriter != null)
+                CodeWriter = new(streamWriter);
             Memory = new(this);
             Memory.PushStack();
         }
 
-        public CodeWriter CodeWriter { get; }
+        public CodeWriter? CodeWriter { get; private set; }
         public Memory Memory { get; }
         public short actualPtr { get; protected set; } = 0;
 
@@ -175,11 +201,11 @@ namespace Compiler
             return ReturnCode.OK;
         }
 
-        public void Move(short moveTo)
+        public void Move(CodeWriter codeWriter, short moveTo)
         {
             if (moveTo != actualPtr)
             {
-                CodeWriter.Write(
+                codeWriter.Write(
                     new string(moveTo > actualPtr ? '>' : '<',
                     Math.Abs(moveTo - actualPtr)), $"move to {moveTo}");
                 actualPtr = moveTo;
@@ -234,14 +260,16 @@ namespace Compiler
                 case "byte":
                 case "char":
                     {
+                        if (CodeWriter == null)
+                            return ReturnCode.WrongStart;
                         if (args.Length < 2)
                         {
                             return ReturnCode.BadArgs;
                         }
-                        Memory.Add(args[1]);
+                        Memory.Add(CodeWriter, args[1]);
                         if (args.Length >= 3)
                         {
-                            Move(Memory[args[1]]);
+                            Move(CodeWriter, Memory[args[1]]);
                             byte value = GetValue(args[2]);
                             CodeWriter.Write(
                                 new string('+',
@@ -251,11 +279,13 @@ namespace Compiler
                     }
                 case "add":
                     {
+                        if (CodeWriter == null)
+                            return ReturnCode.WrongStart;
                         if (args.Length < 3)
                         {
                             return ReturnCode.BadArgs;
                         }
-                        Move(Memory[args[1]]);
+                        Move(CodeWriter, Memory[args[1]]);
                         byte value = GetValue(args[2]);
                         CodeWriter.Write(
                             new string('+',
@@ -264,11 +294,13 @@ namespace Compiler
                     }
                 case "sub":
                     {
+                        if (CodeWriter == null)
+                            return ReturnCode.WrongStart;
                         if (args.Length < 3)
                         {
                             return ReturnCode.BadArgs;
                         }
-                        Move(Memory[args[1]]);
+                        Move(CodeWriter, Memory[args[1]]);
                         byte value = GetValue(args[2]);
                         CodeWriter.Write(
                             new string('-',
@@ -277,56 +309,64 @@ namespace Compiler
                     }
                 case "print":
                     {
+                        if (CodeWriter == null)
+                            return ReturnCode.WrongStart;
                         if (args.Length < 2)
                         {
                             return ReturnCode.BadArgs;
                         }
                         foreach (string arg in args.Skip(1))
                         {
-                            Move(Memory[arg]);
+                            Move(CodeWriter, Memory[arg]);
                             CodeWriter.Write(".", "print");
                         }
                         break;
                     }
                 case "input":
                     {
+                        if (CodeWriter == null)
+                            return ReturnCode.WrongStart;
                         if (args.Length < 2)
                         {
                             return ReturnCode.BadArgs;
                         }
-                        Memory.Add(args[1]);
-                        Move(Memory[args[1]]);
+                        Memory.Add(CodeWriter, args[1]);
+                        Move(CodeWriter, Memory[args[1]]);
                         CodeWriter.Write(",", "input");
                         break;
                     }
                 case "while":
                     {
+                        if (CodeWriter == null)
+                            return ReturnCode.WrongStart;
                         if (args.Length < 3)
                         {
                             return ReturnCode.BadArgs;
                         }
                         short address = Memory[args[1]];
-                        Move(address);
+                        Move(CodeWriter, address);
                         CodeWriter.Write("[", $"check {address}");
                         Memory.PushStack();
                         ReturnCode r = Compile(getFileCommands(new string(args[2].Skip(1).ToArray()).Replace((char)2, ' ')), this, true);
-                        Memory.PopStack(true);
+                        Memory.PopStack(CodeWriter, true);
                         if (r != ReturnCode.OK)
                         {
                             return r;
                         }
-                        Move(address);
+                        Move(CodeWriter, address);
                         CodeWriter.Write("]", $"end of {address}");
                         break;
                     }
                 case "if":
                     {
+                        if (CodeWriter == null)
+                            return ReturnCode.WrongStart;
                         if (args.Length < 3)
                         {
                             return ReturnCode.BadArgs;
                         }
                         short address = Memory[args[1]];
-                        Move(address);
+                        Move(CodeWriter, address);
                         CodeWriter.Write("[", $"check {address}");
                         Memory.PushStack();
                         ReturnCode r = Compile(getFileCommands(new string(args[2].Skip(1).ToArray()).Replace((char)2, ' ')), this, garbage);
@@ -334,9 +374,9 @@ namespace Compiler
                         {
                             return r;
                         }
-                        Memory.Add(" if ");
-                        Move(Memory[" if "]);
-                        Memory.PopStack(garbage);
+                        Memory.Add(CodeWriter, " if ");
+                        Move(CodeWriter, Memory[" if "]);
+                        Memory.PopStack(CodeWriter, garbage);
                         CodeWriter.Write("]", $"end of {address}");
                         break;
                     }
@@ -352,17 +392,19 @@ namespace Compiler
                             to[(i - 3) / 2] = args[i];
                         }
                         BFFunctions.Add(args[1], new BFFunction(args.Length / 2 - 1,
-                            (Compiler comp, string[] args2, bool garbage) =>
+                            (Compiler comp, CodeWriter codeWriter, string[] args2, bool garbage) =>
                         {
                             comp.Memory.PushFunc(args2, to);
                             ReturnCode r = Compile(getFileCommands(new string(args[args.Length - 1].Skip(1).ToArray()).Replace((char)2, ' ')), this, garbage);
-                            comp.Memory.PopFunc(garbage);
+                            comp.Memory.PopFunc(codeWriter, garbage);
                             return r;
                         }));
                         break;
                     }
                 case "call":
                     {
+                        if (CodeWriter == null)
+                            return ReturnCode.WrongStart;
                         if (args.Length < 2 || !BFFunctions.ContainsKey(args[1]))
                         {
                             return ReturnCode.BadArgs;
@@ -372,7 +414,7 @@ namespace Compiler
                         {
                             return ReturnCode.BadArgs;
                         }
-                        ReturnCode r = func.Action(this, args.Skip(2).ToArray(), garbage);
+                        ReturnCode r = func.Action(this, CodeWriter, args.Skip(2).ToArray(), garbage);
                         if (r != ReturnCode.OK)
                         {
                             return r;

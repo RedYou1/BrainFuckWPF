@@ -39,22 +39,19 @@
 > //move to 8
 . //print
 > //move to 9
-, //input
-. //print
-> //move to 10
-+ //adding 1
-[ //check 10
-. //print
-+ //adding 1
-] //end of 10
-> //move to 11
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ //adding 66
-[ //check 11
+[ //check 9
 - //substracting 1
-> //move to 12
-] //end of 11
-< //move to 11
+> //move to 10
+] //end of 9
+< //move to 9
 . //print
->> //move to 13
+>> //move to 11
 + //adding 1
 . //print
+> //move to 12
++ //adding 1
+[ //check 12
+. //print
++ //adding 1
+] //end of 12

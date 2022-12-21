@@ -1,6 +1,4 @@
-﻿#define MultipleLine
-
-namespace Compiler
+﻿namespace Compiler
 {
     public class CodeWriter
     {
@@ -13,11 +11,10 @@ namespace Compiler
 
         public void Write(string command, string description)
         {
-#if MultipleLine
-            _writer.WriteLine(command + " //" + description);
-#else
-            _writer.Write(command);
-#endif
+            if (Compiler.Debug)
+                _writer.WriteLine(command + " //" + description);
+            else
+                _writer.Write(command);
         }
     }
 }
