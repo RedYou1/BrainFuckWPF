@@ -274,10 +274,10 @@ namespace Compiler
                         {
                             return ReturnCode.BadArgs;
                         }
-                        Memory.Add(CodeWriter, args[1]);
+                        ValueType v = Memory.Add(CodeWriter, args[1], 1);
                         if (args.Length >= 3)
                         {
-                            Move(CodeWriter, Memory[args[1]]);
+                            Move(CodeWriter, v.Address);
                             byte value = GetValue(args[2]);
                             CodeWriter.Write(
                                 new string('+',
@@ -293,7 +293,7 @@ namespace Compiler
                         {
                             return ReturnCode.BadArgs;
                         }
-                        Move(CodeWriter, Memory[args[1]]);
+                        Move(CodeWriter, Memory[args[1]].Address);
                         byte value = GetValue(args[2]);
                         CodeWriter.Write(
                             new string('+',
@@ -308,7 +308,7 @@ namespace Compiler
                         {
                             return ReturnCode.BadArgs;
                         }
-                        Move(CodeWriter, Memory[args[1]]);
+                        Move(CodeWriter, Memory[args[1]].Address);
                         byte value = GetValue(args[2]);
                         CodeWriter.Write(
                             new string('-',
@@ -325,7 +325,7 @@ namespace Compiler
                         }
                         foreach (string arg in args.Skip(1))
                         {
-                            Move(CodeWriter, Memory[arg]);
+                            Move(CodeWriter, Memory[arg].Address);
                             CodeWriter.Write(".", "print");
                         }
                         break;
@@ -338,8 +338,8 @@ namespace Compiler
                         {
                             return ReturnCode.BadArgs;
                         }
-                        Memory.Add(CodeWriter, args[1]);
-                        Move(CodeWriter, Memory[args[1]]);
+                        ValueType v = Memory.Add(CodeWriter, args[1], 1);
+                        Move(CodeWriter, v.Address);
                         CodeWriter.Write(",", "input");
                         break;
                     }
@@ -351,7 +351,7 @@ namespace Compiler
                         {
                             return ReturnCode.BadArgs;
                         }
-                        short address = Memory[args[1]];
+                        short address = Memory[args[1]].Address;
                         Move(CodeWriter, address);
                         CodeWriter.Write("[", $"check {address}");
                         Memory.PushStack();
@@ -373,7 +373,7 @@ namespace Compiler
                         {
                             return ReturnCode.BadArgs;
                         }
-                        short address = Memory[args[1]];
+                        short address = Memory[args[1]].Address;
                         Move(CodeWriter, address);
                         CodeWriter.Write("[", $"check {address}");
                         Memory.PushStack();
@@ -382,8 +382,8 @@ namespace Compiler
                         {
                             return r;
                         }
-                        Memory.Add(CodeWriter, " if ");
-                        Move(CodeWriter, Memory[" if "]);
+                        ValueType v = Memory.Add(CodeWriter, " if ", 1);
+                        Move(CodeWriter, v.Address);
                         Memory.PopStack(CodeWriter, garbage);
                         CodeWriter.Write("]", $"end of {address}");
                         break;
