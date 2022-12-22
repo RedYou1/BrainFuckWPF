@@ -5,7 +5,6 @@ namespace Compiler
 {
     public class Compiler
     {
-        private static string[] EXTENSIONS = new string[] { "*.b", "*.f" };
         public static bool Debug = true;
 
         public enum ReturnCode
@@ -17,38 +16,35 @@ namespace Compiler
             BadArgs,
             WrongStart
         }
-        public static ReturnCode Compile(string sourcePath, string startingFile, string resultPath)
+
+        public static ReturnCode Compile(string sourcePath, string startingFile, string resultPath = "", Compiler? comp = null)
         {
             if (!Directory.Exists(sourcePath) && !File.Exists(sourcePath))
             {
                 return ReturnCode.SourceDontExists;
             }
 
-            ReturnCode returnCode = ReturnCode.OK;
+            if (comp == null)
+                comp = new Compiler(sourcePath, null);
 
-            Compiler comp = new Compiler(null);
-
-            if (!File.Exists(sourcePath))
+            if (!File.Exists(startingFile + ".b"))
             {
-                foreach (string path in
-                    EXTENSIONS.SelectMany(filter => Directory.EnumerateFiles(sourcePath, filter)
-                        .Where(path => path != startingFile)))
-                {
-                    if (!File.Exists(path))
-                    {
-                        return ReturnCode.SourceDontExists;
-                    }
-                    returnCode = Compile(getFileCommands(File.ReadAllText(path)), comp, false);
-                    if (returnCode != ReturnCode.OK)
-                        return returnCode;
-                }
+                return ReturnCode.SourceDontExists;
             }
+            ReturnCode returnCode = Compile(getFileCommands(File.ReadAllText(startingFile + ".b")), comp, false);
+            if (returnCode != ReturnCode.OK)
+                return returnCode;
 
-            using (StreamWriter sw = File.CreateText(resultPath))
+            if (File.Exists(startingFile + ".f"))
             {
-                comp.CodeWriter = new CodeWriter(sw);
-                returnCode = Compile(getFileCommands(File.ReadAllText(startingFile)), comp, false);
-                sw.Close();
+                StreamWriter? sw = null;
+                if (resultPath != "")
+                {
+                    sw = File.CreateText(resultPath);
+                    comp.CodeWriter = new CodeWriter(sw);
+                }
+                returnCode = Compile(getFileCommands(File.ReadAllText(startingFile + ".f")), comp, false);
+                sw?.Close();
             }
 
             return returnCode;
@@ -56,13 +52,16 @@ namespace Compiler
 
         public Dictionary<string, BFFunction> BFFunctions { get; } = new();
 
-        public Compiler(StreamWriter? streamWriter)
+        public Compiler(string path, StreamWriter? streamWriter)
         {
+            Path = path;
             if (streamWriter != null)
                 CodeWriter = new(streamWriter);
             Memory = new(this);
             Memory.PushStack();
         }
+
+        public string Path { get; }
 
         public CodeWriter? CodeWriter { get; private set; }
         public Memory Memory { get; }
@@ -256,6 +255,15 @@ namespace Compiler
         {
             switch (args[0])
             {
+                case "include":
+                    {
+                        if (args.Length < 2)
+                        {
+                            return ReturnCode.BadArgs;
+                        }
+                        Compile(Path, Path + args[1], "", this);
+                        break;
+                    }
                 case "bool":
                 case "byte":
                 case "char":

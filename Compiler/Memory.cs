@@ -10,7 +10,9 @@ namespace Compiler
 
         private Dictionary<string, short> current => memory.Peek();
 
+        //Already got used but don't know if it is at zero
         private List<short> garbages = new();
+        //Already got used but is at zero
         private List<short> unUsed = new();
 
         private Compiler Compiler;

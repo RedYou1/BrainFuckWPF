@@ -1,7 +1,5 @@
-func testFunc byte w
-{
-    add w 1;
-}
+include Other;
+
 func funcIf
 {
     byte a 'B';
