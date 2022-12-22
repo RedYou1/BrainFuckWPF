@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using Byte = Compiler.ValueTypes.Byte;
+using System.IO;
 using System.Text.RegularExpressions;
 
 namespace Compiler
@@ -274,7 +275,7 @@ namespace Compiler
                         {
                             return ReturnCode.BadArgs;
                         }
-                        ValueType v = Memory.Add(CodeWriter, args[1], 1);
+                        Byte v = Memory.Add<Byte>(CodeWriter, args[1]);
                         if (args.Length >= 3)
                         {
                             Move(CodeWriter, v.Address);
@@ -293,11 +294,7 @@ namespace Compiler
                         {
                             return ReturnCode.BadArgs;
                         }
-                        Move(CodeWriter, Memory[args[1]].Address);
-                        byte value = GetValue(args[2]);
-                        CodeWriter.Write(
-                            new string('+',
-                                value), $"adding {value}");
+                        Memory[args[1]].Add(this, CodeWriter, args[2]);
                         break;
                     }
                 case "sub":
@@ -308,11 +305,7 @@ namespace Compiler
                         {
                             return ReturnCode.BadArgs;
                         }
-                        Move(CodeWriter, Memory[args[1]].Address);
-                        byte value = GetValue(args[2]);
-                        CodeWriter.Write(
-                            new string('-',
-                                value), $"substracting {value}");
+                        Memory[args[1]].Sub(this, CodeWriter, args[2]);
                         break;
                     }
                 case "print":
@@ -325,8 +318,12 @@ namespace Compiler
                         }
                         foreach (string arg in args.Skip(1))
                         {
-                            Move(CodeWriter, Memory[arg].Address);
-                            CodeWriter.Write(".", "print");
+                            ValueType v = Memory[arg];
+                            for (short i = v.Address; i < v.Address + v.Size; i++)
+                            {
+                                Move(CodeWriter, i);
+                                CodeWriter.Write(".", "print");
+                            }
                         }
                         break;
                     }
@@ -338,7 +335,7 @@ namespace Compiler
                         {
                             return ReturnCode.BadArgs;
                         }
-                        ValueType v = Memory.Add(CodeWriter, args[1], 1);
+                        Byte v = Memory.Add<Byte>(CodeWriter, args[1]);
                         Move(CodeWriter, v.Address);
                         CodeWriter.Write(",", "input");
                         break;
@@ -382,7 +379,7 @@ namespace Compiler
                         {
                             return r;
                         }
-                        ValueType v = Memory.Add(CodeWriter, " if ", 1);
+                        Byte v = Memory.Add<Byte>(CodeWriter, " if ");
                         Move(CodeWriter, v.Address);
                         Memory.PopStack(CodeWriter, garbage);
                         CodeWriter.Write("]", $"end of {address}");

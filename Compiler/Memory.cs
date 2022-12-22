@@ -27,57 +27,59 @@ namespace Compiler
 
         public bool ContainName(string name) => current.ContainsKey(name);
 
-        public ValueType Add(CodeWriter codeWriter, string name, short size)
+        public T Add<T>(CodeWriter codeWriter, string name)
+            where T : ValueType
         {
+            var type = ValueType.Types[typeof(T).Name];
             if (nextMemory == 29999)
             {
-                if (unUsed.Any(v => v.Size >= size))
+                if (unUsed.Any(v => v.Size >= type.size))
                 {
-                    ValueType v = unUsed.First(v => v.Size >= size);
+                    ValueType v = unUsed.First(v => v.Size >= type.size);
                     unUsed.Remove(v);
-                    if (v.Size > size)
+                    if (v.Size > type.size)
                     {
-                        unUsed.Add(new ValueType { Address = (short)(v.Address + size), Size = (short)(v.Size - size) });
+                        unUsed.Add(new ValueType((short)(v.Address + type.size), (short)(v.Size - type.size)));
                     }
-                    v = new ValueType { Address = v.Address, Size = size };
-                    current.Add(name, v);
+                    T r = (T)type.constructor(v.Address);
+                    current.Add(name, r);
                     this.name.Peek().Add(name);
-                    return v;
+                    return r;
                 }
-                else if (garbages.Any(v => v.Size >= size))
+                else if (garbages.Any(v => v.Size >= type.size))
                 {
-                    ValueType v = garbages.First(v => v.Size >= size);
+                    ValueType v = garbages.First(v => v.Size >= type.size);
                     garbages.Remove(v);
-                    if (v.Size > size)
+                    if (v.Size > type.size)
                     {
-                        garbages.Add(new ValueType { Address = (short)(v.Address + size), Size = (short)(v.Size - size) });
+                        garbages.Add(new ValueType((short)(v.Address + type.size), (short)(v.Size - type.size)));
                     }
-                    v = new ValueType { Address = v.Address, Size = size };
-                    current.Add(name, v);
+                    T r = (T)type.constructor(v.Address);
+                    current.Add(name, r);
                     this.name.Peek().Add(name);
-                    for (short i = v.Address; i < v.Address + size; i++)
+                    for (short i = r.Address; i < r.Address + type.size; i++)
                     {
                         Compiler.Move(codeWriter, i);
                         codeWriter.Write("[-]", "set to 0");
                     }
-                    while (unUsed.Any(v => v.Address + v.Size == nextMemory))
+                    while (unUsed.Any(v => r.Address + r.Size == nextMemory))
                     {
-                        ValueType v2 = unUsed.First(v => v.Address + v.Size == nextMemory);
+                        ValueType v2 = unUsed.First(v => r.Address + r.Size == nextMemory);
                         unUsed.Remove(v2);
                         nextMemory = v2.Address;
                     }
-                    return v;
+                    return r;
                 }
                 else
                     throw new Exception("BrainFuck out of memory");
             }
             else
             {
-                ValueType v = new ValueType { Address = nextMemory, Size = size };
-                current.Add(name, v);
+                T r = (T)type.constructor(nextMemory);
+                current.Add(name, r);
                 this.name.Peek().Add(name);
-                nextMemory += size;
-                return v;
+                nextMemory += type.size;
+                return r;
             }
         }
 
