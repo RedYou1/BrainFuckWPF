@@ -5,20 +5,13 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Byte = Compiler.ValueTypes.Byte;
 
 namespace Compiler
 {
-    public class ValueType
+    public class ValueType : Data
     {
-        public short Address { get; }
-        public short Size { get; }
 
-        public ValueType(short address, short size)
-        {
-            Address = address;
-            Size = size;
-        }
+        public ValueType(short address, short size) : base(address, size) { }
 
         public virtual void Add(Compiler comp, CodeWriter codeWriter, string stringValue)
         {
@@ -33,9 +26,10 @@ namespace Compiler
 
         public static Dictionary<string, (short size, Func<short, ValueType> constructor)> Types =
         new(){
-            { nameof(Byte),(1,Byte.Constructor) }
+            { nameof(Bool),(1,Bool.Constructor) },
+            { nameof(Byte),(1,Byte.Constructor) },
+            { nameof(Char),(1,Char.Constructor) },
+            { nameof(Short),(2,Short.Constructor) }
         };
-
-        public short[] Array => Enumerable.Range(Address, Size).Cast<short>().ToArray();
     }
 }

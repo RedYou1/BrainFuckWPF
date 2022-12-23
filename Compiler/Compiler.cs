@@ -1,6 +1,7 @@
-﻿using Byte = Compiler.ValueTypes.Byte;
+﻿using System.Drawing;
 using System.IO;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 
 namespace Compiler
 {
@@ -212,44 +213,14 @@ namespace Compiler
             }
         }
 
-        public byte GetValue(string value)
+        private static void initNumber<T>(Compiler comp, CodeWriter CodeWriter, string name, string? value)
+            where T : ValueType
         {
-            byte result = 0;
-            if (byte.TryParse(value, out result))
+            T v = comp.Memory.Add<T>(CodeWriter, name);
+            if (value != null)
             {
-                return result;
+                v.Add(comp, CodeWriter, value);
             }
-            else if (Regex.Match(value, @"^'\\{0,1}.'$").Success)
-            {
-                value = value.Substring(1, value.Length - 2);
-                if (value.Length == 1)
-                {
-                    return (byte)value[0];
-                }
-                else
-                {
-                    switch (value[1])
-                    {
-                        case 'a':
-                            return (byte)'\a';
-                        case 'b':
-                            return (byte)'\b';
-                        case 'f':
-                            return (byte)'\f';
-                        case 'n':
-                            return (byte)'\n';
-                        case 'r':
-                            return (byte)'\r';
-                        case 't':
-                            return (byte)'\t';
-                        case 'v':
-                            return (byte)'\v';
-                        default:
-                            return (byte)value[1];
-                    }
-                }
-            }
-            throw new ArgumentException();
         }
 
         private ReturnCode compileLine(string[] args, bool garbage)
@@ -266,7 +237,27 @@ namespace Compiler
                         break;
                     }
                 case "bool":
+                    {
+                        if (CodeWriter == null)
+                            return ReturnCode.WrongStart;
+                        if (args.Length < 2)
+                        {
+                            return ReturnCode.BadArgs;
+                        }
+                        initNumber<Bool>(this, CodeWriter, args[1], args.Length >= 3 ? args[2] : null);
+                        break;
+                    }
                 case "byte":
+                    {
+                        if (CodeWriter == null)
+                            return ReturnCode.WrongStart;
+                        if (args.Length < 2)
+                        {
+                            return ReturnCode.BadArgs;
+                        }
+                        initNumber<Byte>(this, CodeWriter, args[1], args.Length >= 3 ? args[2] : null);
+                        break;
+                    }
                 case "char":
                     {
                         if (CodeWriter == null)
@@ -275,14 +266,46 @@ namespace Compiler
                         {
                             return ReturnCode.BadArgs;
                         }
-                        Byte v = Memory.Add<Byte>(CodeWriter, args[1]);
-                        if (args.Length >= 3)
+                        initNumber<Char>(this, CodeWriter, args[1], args.Length >= 3 ? args[2] : null);
+                        break;
+                    }
+                case "short":
+                    {
+                        if (CodeWriter == null)
+                            return ReturnCode.WrongStart;
+                        if (args.Length < 2)
                         {
-                            Move(CodeWriter, v.Address);
-                            byte value = GetValue(args[2]);
-                            CodeWriter.Write(
-                                new string('+',
-                                    value), $"adding {value}");
+                            return ReturnCode.BadArgs;
+                        }
+                        initNumber<Short>(this, CodeWriter, args[1], args.Length >= 3 ? args[2] : null);
+                        break;
+                    }
+                case "array":
+                    {
+                        if (CodeWriter == null)
+                            return ReturnCode.WrongStart;
+                        if (args.Length < 4)
+                        {
+                            return ReturnCode.BadArgs;
+                        }
+                        //array {name} {type} {amount}
+                        throw new NotImplementedException();
+                    }
+                case "string":
+                    {
+                        if (CodeWriter == null)
+                            return ReturnCode.WrongStart;
+                        if (args.Length < 3)
+                        {
+                            return ReturnCode.BadArgs;
+                        }
+                        string value = String.GetValue(args[2]);
+                        String s = Memory.Add<String>(CodeWriter, args[1], (short)value.Length, String.ConstructorOf((short)value.Length));
+                        for (int i = 0; i < value.Length; i++)
+                        {
+                            Move(CodeWriter, (short)(s.Address + i));
+                            CodeWriter.Write(new string('+',
+                                value[i]), $"adding {value[i]}");
                         }
                         break;
                     }
@@ -294,7 +317,7 @@ namespace Compiler
                         {
                             return ReturnCode.BadArgs;
                         }
-                        Memory[args[1]].Add(this, CodeWriter, args[2]);
+                        ((ValueType)Memory[args[1]]).Add(this, CodeWriter, args[2]);
                         break;
                     }
                 case "sub":
@@ -305,7 +328,7 @@ namespace Compiler
                         {
                             return ReturnCode.BadArgs;
                         }
-                        Memory[args[1]].Sub(this, CodeWriter, args[2]);
+                        ((ValueType)Memory[args[1]]).Sub(this, CodeWriter, args[2]);
                         break;
                     }
                 case "print":
@@ -318,7 +341,7 @@ namespace Compiler
                         }
                         foreach (string arg in args.Skip(1))
                         {
-                            ValueType v = Memory[arg];
+                            Data v = Memory[arg];
                             for (short i = v.Address; i < v.Address + v.Size; i++)
                             {
                                 Move(CodeWriter, i);

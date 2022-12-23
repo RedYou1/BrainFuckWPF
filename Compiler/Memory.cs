@@ -6,16 +6,16 @@ namespace Compiler
 {
     public class Memory
     {
-        private Stack<Dictionary<string, ValueType>> memory = new();
+        private Stack<Dictionary<string, Data>> memory = new();
 
         private Stack<List<string>> name = new();
 
-        private Dictionary<string, ValueType> current => memory.Peek();
+        private Dictionary<string, Data> current => memory.Peek();
 
         //Already got used but don't know if it is at zero
-        private List<ValueType> garbages = new();
+        private List<Data> garbages = new();
         //Already got used but is at zero
-        private List<ValueType> unUsed = new();
+        private List<Data> unUsed = new();
 
         private Compiler Compiler;
 
@@ -31,61 +31,70 @@ namespace Compiler
             where T : ValueType
         {
             var type = ValueType.Types[typeof(T).Name];
+            return (T)Add(codeWriter, name, type.size, type.constructor);
+        }
+
+        public T Add<T>(CodeWriter codeWriter, string name, short size, Func<short, Data> constructor)
+            where T : Data
+            => (T)Add(codeWriter, name, size, constructor);
+
+        private Data Add(CodeWriter codeWriter, string name, short size, Func<short, Data> constructor)
+        {
             if (nextMemory == 29999)
             {
-                if (unUsed.Any(v => v.Size >= type.size))
+                if (unUsed.Any(v => v.Size >= size))
                 {
-                    ValueType v = unUsed.First(v => v.Size >= type.size);
+                    Data v = unUsed.First(v => v.Size >= size);
                     unUsed.Remove(v);
-                    if (v.Size > type.size)
+                    if (v.Size > size)
                     {
-                        unUsed.Add(new ValueType((short)(v.Address + type.size), (short)(v.Size - type.size)));
+                        unUsed.Add(new Data((short)(v.Address + size), (short)(v.Size - size)));
                     }
-                    T r = (T)type.constructor(v.Address);
-                    current.Add(name, r);
+                    v = constructor(v.Address);
+                    current.Add(name, v);
                     this.name.Peek().Add(name);
-                    return r;
+                    return v;
                 }
-                else if (garbages.Any(v => v.Size >= type.size))
+                else if (garbages.Any(v => v.Size >= size))
                 {
-                    ValueType v = garbages.First(v => v.Size >= type.size);
+                    Data v = garbages.First(v => v.Size >= size);
                     garbages.Remove(v);
-                    if (v.Size > type.size)
+                    if (v.Size > size)
                     {
-                        garbages.Add(new ValueType((short)(v.Address + type.size), (short)(v.Size - type.size)));
+                        garbages.Add(new Data((short)(v.Address + size), (short)(v.Size - size)));
                     }
-                    T r = (T)type.constructor(v.Address);
-                    current.Add(name, r);
+                    v = constructor(v.Address);
+                    current.Add(name, v);
                     this.name.Peek().Add(name);
-                    for (short i = r.Address; i < r.Address + type.size; i++)
+                    for (short i = v.Address; i < v.Address + size; i++)
                     {
                         Compiler.Move(codeWriter, i);
                         codeWriter.Write("[-]", "set to 0");
                     }
-                    while (unUsed.Any(v => r.Address + r.Size == nextMemory))
+                    while (unUsed.Any(v => v.Address + v.Size == nextMemory))
                     {
-                        ValueType v2 = unUsed.First(v => r.Address + r.Size == nextMemory);
+                        Data v2 = unUsed.First(v => v.Address + v.Size == nextMemory);
                         unUsed.Remove(v2);
                         nextMemory = v2.Address;
                     }
-                    return r;
+                    return v;
                 }
                 else
                     throw new Exception("BrainFuck out of memory");
             }
             else
             {
-                T r = (T)type.constructor(nextMemory);
-                current.Add(name, r);
+                Data v = constructor(nextMemory);
+                current.Add(name, v);
                 this.name.Peek().Add(name);
-                nextMemory += type.size;
-                return r;
+                nextMemory += size;
+                return v;
             }
         }
 
         void remove(CodeWriter codeWriter, bool garbage, string name)
         {
-            ValueType v = current[name];
+            Data v = current[name];
             if (garbage)
             {
                 for (short i = v.Address; i < v.Address + v.Size; i++)
@@ -98,7 +107,7 @@ namespace Compiler
                     nextMemory = v.Address;
                     while (unUsed.Any(v => v.Address + v.Size == nextMemory))
                     {
-                        ValueType v2 = unUsed.First(v => v.Address + v.Size == nextMemory);
+                        Data v2 = unUsed.First(v => v.Address + v.Size == nextMemory);
                         unUsed.Remove(v2);
                         nextMemory = v2.Address;
                     }
@@ -120,8 +129,8 @@ namespace Compiler
             int size = from.Length;
             if (size != to.Length)
                 throw new ArgumentException("not same size");
-            Dictionary<string, ValueType> current = this.current;
-            Dictionary<string, ValueType> dict = new();
+            Dictionary<string, Data> current = this.current;
+            Dictionary<string, Data> dict = new();
             for (int i = 0; i < size; i++)
             {
                 dict.Add(to[i], current[from[i]]);
@@ -153,7 +162,7 @@ namespace Compiler
             }
         }
 
-        public ValueType this[string name] => current[name];
+        public Data this[string name] => current[name];
         protected short nextMemory = 0;
     }
 }

@@ -1,17 +1,24 @@
-byte H 'H';
-byte e 'e';
-byte l 'l';
-byte o 'o';
-byte s ' ';
-byte W 'W';
-byte r 'r';
-byte d 'd';
-byte ! '!';
+char H 'H';
+char e 'e';
+char l 'l';
+char o 'o';
+char s ' ';
+char W 'W';
+char r 'r';
+char d 'd';
+char ! '!';
 print H e l l o s W o r l d !;
 
+string wow "wow";
+print wow;
+
 call funcIf;
-byte testIf 1;
-print testIf;
+bool testIf True;
+if testIf
+{
+    string trueString "True";
+    print trueString;
+}
 
 byte i 1;
 while i

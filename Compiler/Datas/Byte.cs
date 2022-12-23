@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Reflection.Emit;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace Compiler.ValueTypes
+namespace Compiler
 {
     public class Byte : ValueType
     {
@@ -18,7 +20,7 @@ namespace Compiler.ValueTypes
         public override void Add(Compiler comp, CodeWriter codeWriter, string stringValue)
         {
             comp.Move(codeWriter, Address);
-            byte value = comp.GetValue(stringValue);
+            byte value = GetValue(stringValue);
             codeWriter.Write(
                 new string('+',
                     value), $"adding {value}");
@@ -27,10 +29,19 @@ namespace Compiler.ValueTypes
         public override void Sub(Compiler comp, CodeWriter codeWriter, string stringValue)
         {
             comp.Move(codeWriter, Address);
-            byte value = comp.GetValue(stringValue);
+            byte value = GetValue(stringValue);
             codeWriter.Write(
                 new string('-',
                     value), $"substracting {value}");
+        }
+
+        public static byte GetValue(string value)
+        {
+            if (byte.TryParse(value, out byte result))
+            {
+                return result;
+            }
+            return (byte)Char.GetValue(value);
         }
     }
 }
