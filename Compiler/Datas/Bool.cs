@@ -17,13 +17,24 @@ namespace Compiler
 
         public static Bool Constructor(short address) => new Bool(address, Types[nameof(Bool)].size);
 
-        public override void Add(Compiler comp, CodeWriter codeWriter, string stringValue)
+        public override void Add(Compiler comp, CodeWriter codeWriter, string stringValue, bool needReset)
         {
-            bool value = GetValue(stringValue);
-            if (value)
+            if (comp.Memory.ContainName(stringValue))
             {
-                comp.Move(codeWriter, Address);
-                codeWriter.Write("+", $"adding {value}");
+                Data from = comp.Memory[stringValue];
+                if (from.Size != Types[nameof(Bool)].size)
+                    throw new Exception("Bool add not same size");
+
+                comp.CopyData(codeWriter, from, this, false, needReset);
+            }
+            else
+            {
+                bool value = GetValue(stringValue);
+                if (value)
+                {
+                    comp.Move(codeWriter, Address);
+                    codeWriter.Write("+", $"adding {value}");
+                }
             }
         }
 

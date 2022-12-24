@@ -15,8 +15,26 @@ namespace Compiler
         {
             Address = address;
             Size = size;
+            AddressArray = Enumerable.Range(Address, Size).Select(x => (short)x).ToArray();
         }
 
-        public short[] Array => Enumerable.Range(Address, Size).Cast<short>().ToArray();
+        public virtual void Set(Compiler comp, CodeWriter codeWriter, string stringValue, bool needReset)
+        {
+            throw new Exception("Can't set a Data class");
+        }
+
+        public readonly short[] AddressArray;
+
+        public static List<string> Types =
+        new(){
+            nameof(Bool),
+            nameof(Byte),
+            nameof(Char),
+            nameof(Short),
+            nameof(Int),
+
+            nameof(Array),
+            nameof(String),
+        };
     }
 }

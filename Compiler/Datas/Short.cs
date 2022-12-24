@@ -15,13 +15,24 @@ namespace Compiler
 
         public static Short Constructor(short address) => new Short(address, Types[nameof(Short)].size);
 
-        public override void Add(Compiler comp, CodeWriter codeWriter, string stringValue)
+        public override void Add(Compiler comp, CodeWriter codeWriter, string stringValue, bool needReset)
         {
-            comp.Move(codeWriter, (short)(Address + 1));
-            short value = GetValue(stringValue);
-            codeWriter.Write(
-                new StringBuilder("+[<+>]".Length * value).Insert(0, "+[<+>]", value).ToString()
-                , $"adding {value}");
+            if (comp.Memory.ContainName(stringValue))
+            {
+                Data from = comp.Memory[stringValue];
+                if (from.Size != Types[nameof(Short)].size)
+                    throw new Exception("Short add not same size");
+
+                comp.CopyData(codeWriter, from, this, false, needReset);
+            }
+            else
+            {
+                comp.Move(codeWriter, (short)(Address + 1));
+                short value = GetValue(stringValue);
+                codeWriter.Write(
+                    new StringBuilder("+[<+>]".Length * value).Insert(0, "+[<+>]", value).ToString()
+                    , $"adding {value}");
+            }
         }
 
         public override void Sub(Compiler comp, CodeWriter codeWriter, string stringValue)

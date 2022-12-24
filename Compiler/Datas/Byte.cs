@@ -17,13 +17,24 @@ namespace Compiler
 
         public static Byte Constructor(short address) => new Byte(address, Types[nameof(Byte)].size);
 
-        public override void Add(Compiler comp, CodeWriter codeWriter, string stringValue)
+        public override void Add(Compiler comp, CodeWriter codeWriter, string stringValue, bool needReset)
         {
-            comp.Move(codeWriter, Address);
-            byte value = GetValue(stringValue);
-            codeWriter.Write(
-                new string('+',
-                    value), $"adding {value}");
+            if (comp.Memory.ContainName(stringValue))
+            {
+                Data from = comp.Memory[stringValue];
+                if (from.Size != Types[nameof(Byte)].size)
+                    throw new Exception("Byte add not same size");
+
+                comp.CopyData(codeWriter, from, this, false, needReset);
+            }
+            else
+            {
+                comp.Move(codeWriter, Address);
+                byte value = GetValue(stringValue);
+                codeWriter.Write(
+                    new string('+',
+                        value), $"adding {value}");
+            }
         }
 
         public override void Sub(Compiler comp, CodeWriter codeWriter, string stringValue)

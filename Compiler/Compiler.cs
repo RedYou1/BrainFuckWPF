@@ -188,12 +188,12 @@ namespace Compiler
             return values.ToArray();
         }
 
-        private static ReturnCode Compile(string[] commands, Compiler comp, bool garbage)
+        private static ReturnCode Compile(string[] commands, Compiler comp, bool needReset)
         {
             foreach (string line in commands)
             {
                 string[] args = line.Split((char)1);
-                ReturnCode status = comp.compileLine(args, garbage);
+                ReturnCode status = comp.compileLine(args, needReset);
                 if (status != ReturnCode.OK)
                 {
                     return status;
@@ -213,17 +213,94 @@ namespace Compiler
             }
         }
 
-        private static void initNumber<T>(Compiler comp, CodeWriter CodeWriter, string name, string? value)
+        private static void initNumber<T>(Compiler comp, CodeWriter CodeWriter, string name, string? value, bool needReset)
             where T : ValueType
         {
             T v = comp.Memory.Add<T>(CodeWriter, name);
             if (value != null)
             {
-                v.Add(comp, CodeWriter, value);
+                v.Add(comp, CodeWriter, value, needReset);
             }
         }
 
-        private ReturnCode compileLine(string[] args, bool garbage)
+        public void CopyData(CodeWriter codeWriter, Data from, Data to, bool set2ToZero, bool needReset)
+        {
+            if (from.Address == to.Address)
+                return;
+            if (from.Size != to.Size)
+                throw new Exception("CopyData dont have the same size");
+
+            for (int i = 0; i < from.Size; i++)
+            {
+                CopyData(codeWriter, from.AddressArray[i], to.AddressArray[i], set2ToZero, needReset);
+            }
+        }
+
+        public void CopyData(CodeWriter codeWriter, short from, short to, bool set2ToZero, bool needReset)
+        {
+            if (from == to)
+                return;
+            if (set2ToZero)
+            {
+                if (to != actualPtr)
+                    Move(codeWriter, to);
+                codeWriter.Write("[-]", "reset to 0");
+            }
+            if (from != actualPtr)
+                Move(codeWriter, from);
+
+            Memory.PushStack();
+
+            Byte temp = Memory.Add<Byte>(codeWriter, " copyData ");
+
+            short moveAmountA = (short)Math.Abs(to - from);
+            bool dirA = to > from;
+            short moveAmountB = (short)Math.Abs(temp.Address - to);
+            bool dirB = temp.Address > to;
+            short moveAmountC = (short)Math.Abs(from - temp.Address);
+            bool dirC = from > temp.Address;
+            codeWriter.Write(
+                $"""
+                 [-{new string(dirA ? '>' : '<', moveAmountA)}
+                  +{new string(dirB ? '>' : '<', moveAmountB)}
+                  +{new string(dirC ? '>' : '<', moveAmountC)}]
+                 """, $"Duplicate data from {from} to {from} and {temp.Address}");
+            MoveData(codeWriter, temp.Address, from, false);
+
+            Memory.PopStack(codeWriter, needReset);
+        }
+
+        public void MoveData(CodeWriter codeWriter, Data from, Data to, bool set2ToZero)
+        {
+            if (from.Address == to.Address)
+                return;
+            if (from.Size != to.Size)
+                throw new Exception("MoveData dont have the same size");
+
+            for (int i = 0; i < from.Size; i++)
+            {
+                MoveData(codeWriter, from.AddressArray[i], to.AddressArray[i], set2ToZero);
+            }
+        }
+
+        public void MoveData(CodeWriter codeWriter, short from, short to, bool set2ToZero)
+        {
+            if (from == to)
+                return;
+            if (set2ToZero)
+            {
+                if (to != actualPtr)
+                    Move(codeWriter, to);
+                codeWriter.Write("[-]", "reset to 0");
+            }
+            if (from != actualPtr)
+                Move(codeWriter, from);
+            short moveAmount = (short)Math.Abs(to - from);
+            bool dir = to > from;
+            codeWriter.Write($"[-{new string(dir ? '>' : '<', moveAmount)}+{new string(dir ? '<' : '>', moveAmount)}]", $"Add between {from} and {to}");
+        }
+
+        private ReturnCode compileLine(string[] args, bool needReset)
         {
             switch (args[0])
             {
@@ -236,7 +313,7 @@ namespace Compiler
                         Compile(Path, Path + args[1], "", this);
                         break;
                     }
-                case "bool":
+                case nameof(Bool):
                     {
                         if (CodeWriter == null)
                             return ReturnCode.WrongStart;
@@ -244,10 +321,10 @@ namespace Compiler
                         {
                             return ReturnCode.BadArgs;
                         }
-                        initNumber<Bool>(this, CodeWriter, args[1], args.Length >= 3 ? args[2] : null);
+                        initNumber<Bool>(this, CodeWriter, args[1], args.Length >= 3 ? args[2] : null, needReset);
                         break;
                     }
-                case "byte":
+                case nameof(Byte):
                     {
                         if (CodeWriter == null)
                             return ReturnCode.WrongStart;
@@ -255,10 +332,10 @@ namespace Compiler
                         {
                             return ReturnCode.BadArgs;
                         }
-                        initNumber<Byte>(this, CodeWriter, args[1], args.Length >= 3 ? args[2] : null);
+                        initNumber<Byte>(this, CodeWriter, args[1], args.Length >= 3 ? args[2] : null, needReset);
                         break;
                     }
-                case "char":
+                case nameof(Char):
                     {
                         if (CodeWriter == null)
                             return ReturnCode.WrongStart;
@@ -266,10 +343,10 @@ namespace Compiler
                         {
                             return ReturnCode.BadArgs;
                         }
-                        initNumber<Char>(this, CodeWriter, args[1], args.Length >= 3 ? args[2] : null);
+                        initNumber<Char>(this, CodeWriter, args[1], args.Length >= 3 ? args[2] : null, needReset);
                         break;
                     }
-                case "short":
+                case nameof(Short):
                     {
                         if (CodeWriter == null)
                             return ReturnCode.WrongStart;
@@ -277,10 +354,21 @@ namespace Compiler
                         {
                             return ReturnCode.BadArgs;
                         }
-                        initNumber<Short>(this, CodeWriter, args[1], args.Length >= 3 ? args[2] : null);
+                        initNumber<Short>(this, CodeWriter, args[1], args.Length >= 3 ? args[2] : null, needReset);
                         break;
                     }
-                case "array":
+                case nameof(Int):
+                    {
+                        if (CodeWriter == null)
+                            return ReturnCode.WrongStart;
+                        if (args.Length < 2)
+                        {
+                            return ReturnCode.BadArgs;
+                        }
+                        initNumber<Int>(this, CodeWriter, args[1], args.Length >= 3 ? args[2] : null, needReset);
+                        break;
+                    }
+                case nameof(Array):
                     {
                         if (CodeWriter == null)
                             return ReturnCode.WrongStart;
@@ -288,10 +376,21 @@ namespace Compiler
                         {
                             return ReturnCode.BadArgs;
                         }
-                        //array {name} {type} {amount}
-                        throw new NotImplementedException();
+                        var t = ValueType.Types[args[2]];
+                        short amount = short.Parse(args[3]);
+                        Array s = Memory.Add<Array>(CodeWriter, args[1], (short)(t.size * amount)
+                            , Array.ConstructorOf(t.size, amount));
+                        if (args.Length >= 4 + amount)
+                        {
+                            for (short i = 0; i < amount; i++)
+                            {
+                                ValueType v = t.constructor((short)(s.Address + i));
+                                v.Add(this, CodeWriter, args[4 + i], needReset);
+                            }
+                        }
+                        break;
                     }
-                case "string":
+                case nameof(String):
                     {
                         if (CodeWriter == null)
                             return ReturnCode.WrongStart;
@@ -299,13 +398,22 @@ namespace Compiler
                         {
                             return ReturnCode.BadArgs;
                         }
-                        string value = String.GetValue(args[2]);
-                        String s = Memory.Add<String>(CodeWriter, args[1], (short)value.Length, String.ConstructorOf((short)value.Length));
-                        for (int i = 0; i < value.Length; i++)
+                        if (Memory.ContainName(args[2]))
                         {
-                            Move(CodeWriter, (short)(s.Address + i));
-                            CodeWriter.Write(new string('+',
-                                value[i]), $"adding {value[i]}");
+                            Data from = Memory[args[2]];
+                            Data to = Memory.Add<String>(CodeWriter, args[1], from.Size, String.ConstructorOf(from.Size));
+                            CopyData(CodeWriter, from, to, false, needReset);
+                        }
+                        else
+                        {
+                            string value = String.GetValue(args[2]);
+                            String s = Memory.Add<String>(CodeWriter, args[1], (short)value.Length, String.ConstructorOf((short)value.Length));
+                            for (int i = 0; i < value.Length; i++)
+                            {
+                                Move(CodeWriter, (short)(s.Address + i));
+                                CodeWriter.Write(new string('+',
+                                    value[i]), $"adding {value[i]}");
+                            }
                         }
                         break;
                     }
@@ -317,7 +425,7 @@ namespace Compiler
                         {
                             return ReturnCode.BadArgs;
                         }
-                        ((ValueType)Memory[args[1]]).Add(this, CodeWriter, args[2]);
+                        ((ValueType)Memory[args[1]]).Add(this, CodeWriter, args[2], needReset);
                         break;
                     }
                 case "sub":
@@ -397,15 +505,70 @@ namespace Compiler
                         Move(CodeWriter, address);
                         CodeWriter.Write("[", $"check {address}");
                         Memory.PushStack();
-                        ReturnCode r = Compile(getFileCommands(new string(args[2].Skip(1).ToArray()).Replace((char)2, ' ')), this, garbage);
+                        ReturnCode r = Compile(getFileCommands(new string(args[2].Skip(1).ToArray()).Replace((char)2, ' ')), this, needReset);
                         if (r != ReturnCode.OK)
                         {
                             return r;
                         }
                         Byte v = Memory.Add<Byte>(CodeWriter, " if ");
                         Move(CodeWriter, v.Address);
-                        Memory.PopStack(CodeWriter, garbage);
+                        Memory.PopStack(CodeWriter, needReset);
                         CodeWriter.Write("]", $"end of {address}");
+                        break;
+                    }
+                case "struct":
+                    {
+                        if (args.Length < 4 || args.Length % 2 != 0
+                            || Data.Types.Contains(args[1]))
+                        {
+                            return ReturnCode.BadArgs;
+                        }
+
+                        short size = 0;// -1 -> not ValueType
+                        Dictionary<string, Func<short, Data>> datas = new();
+                        for (int i = 2; i < args.Length; i += 2)
+                        {
+                            if (datas.ContainsKey(args[i]))
+                                return ReturnCode.BadArgs;
+
+                            Func<short, Data> constructor;
+                            if (ValueType.Types.ContainsKey(args[i]))
+                            {
+                                var type = ValueType.Types[args[i]];
+                                if (size != -1)
+                                    size += type.size;
+                                constructor = type.constructor;
+                            }
+                            else if (Data.Types.Contains(args[i]))
+                            {
+                                size = -1;
+                                throw new NotImplementedException();
+                            }
+                            else
+                            {
+                                return ReturnCode.BadArgs;
+                            }
+
+                            datas.Add(args[i + 1], constructor);
+                        }
+                        Data.Types.Add(args[1]);
+
+                        if (size != -1)
+                        {
+                            ValueType.Types.Add(args[1], (size, (address) =>
+                                {
+                                    short i = 0;
+                                    List<(string, Data)> sdatas = new();
+                                    foreach (var e in datas)
+                                    {
+                                        Data d = e.Value((short)(address + i));
+                                        sdatas.Add((e.Key, d));
+                                        i += d.Size;
+                                    }
+                                    return new Struct(address, sdatas.ToArray());
+                                }
+                            ));
+                        }
                         break;
                     }
                 case "func":
@@ -420,11 +583,11 @@ namespace Compiler
                             to[(i - 3) / 2] = args[i];
                         }
                         BFFunctions.Add(args[1], new BFFunction(args.Length / 2 - 1,
-                            (Compiler comp, CodeWriter codeWriter, string[] args2, bool garbage) =>
+                            (Compiler comp, CodeWriter codeWriter, string[] args2, bool needReset) =>
                         {
                             comp.Memory.PushFunc(args2, to);
-                            ReturnCode r = Compile(getFileCommands(new string(args[args.Length - 1].Skip(1).ToArray()).Replace((char)2, ' ')), this, garbage);
-                            comp.Memory.PopFunc(codeWriter, garbage);
+                            ReturnCode r = Compile(getFileCommands(new string(args[args.Length - 1].Skip(1).ToArray()).Replace((char)2, ' ')), this, needReset);
+                            comp.Memory.PopFunc(codeWriter, needReset);
                             return r;
                         }));
                         break;
@@ -442,7 +605,7 @@ namespace Compiler
                         {
                             return ReturnCode.BadArgs;
                         }
-                        ReturnCode r = func.Action(this, CodeWriter, args.Skip(2).ToArray(), garbage);
+                        ReturnCode r = func.Action(this, CodeWriter, args.Skip(2).ToArray(), needReset);
                         if (r != ReturnCode.OK)
                         {
                             return r;
@@ -450,6 +613,32 @@ namespace Compiler
                         break;
                     }
                 default:
+                    {
+                        //struct
+                        if (ValueType.Types.ContainsKey(args[0]))
+                        {
+                            if (CodeWriter == null)
+                                return ReturnCode.WrongStart;
+                            if (args.Length < 2)
+                            {
+                                return ReturnCode.BadArgs;
+                            }
+
+                            var t = ValueType.Types[args[0]];
+                            Struct v = Memory.Add<Struct>(CodeWriter, args[1], t.size, t.constructor);
+
+                            if (args.Length < 2 + v.Datas.Length)
+                            {
+                                return ReturnCode.BadArgs;
+                            }
+
+                            for (int i = 0; i < v.Datas.Length; i++)
+                            {
+                                v.Datas[i].data.Set(this, CodeWriter, args[2 + i], needReset);
+                            }
+                            break;
+                        }
+                    }
                     return ReturnCode.BadCommand;
             }
             return ReturnCode.OK;

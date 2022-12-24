@@ -25,7 +25,25 @@ namespace Compiler
             Compiler = comp;
         }
 
-        public bool ContainName(string name) => current.ContainsKey(name);
+        public bool ContainName(string name)
+        {
+            string[] names = name.Split('.');
+            if (!current.ContainsKey(names[0]))
+                return false;
+            Data output = current[names[0]];
+            if (names.Length > 1)
+            {
+                for (int i = 1; i < names.Length; i++)
+                {
+                    if (output is not Container container)
+                        throw new Exception($"not a container {i}");
+                    if (!container.ContainsKey(names[i]))
+                        return false;
+                    output = container[names[i], this];
+                }
+            }
+            return true;
+        }
 
         public T Add<T>(CodeWriter codeWriter, string name)
             where T : ValueType
@@ -92,10 +110,10 @@ namespace Compiler
             }
         }
 
-        void remove(CodeWriter codeWriter, bool garbage, string name)
+        void remove(CodeWriter codeWriter, bool needReset, string name)
         {
             Data v = current[name];
-            if (garbage)
+            if (needReset)
             {
                 for (short i = v.Address; i < v.Address + v.Size; i++)
                 {
@@ -139,21 +157,21 @@ namespace Compiler
             PushStack();
         }
 
-        public void PopFunc(CodeWriter codeWriter, bool garbage)
+        public void PopFunc(CodeWriter codeWriter, bool needReset)
         {
-            PopStack(codeWriter, garbage);
+            PopStack(codeWriter, needReset);
             memory.Pop();
         }
 
         public void PushStack() => name.Push(new());
-        public void PopStack(CodeWriter codeWriter, bool garbage)
+        public void PopStack(CodeWriter codeWriter, bool needReset)
         {
             List<string>? names;
             if (name.TryPop(out names))
             {
                 foreach (string name in names)
                 {
-                    remove(codeWriter, garbage, name);
+                    remove(codeWriter, needReset, name);
                 }
             }
             else
@@ -162,7 +180,25 @@ namespace Compiler
             }
         }
 
-        public Data this[string name] => current[name];
+        public Data this[string name]
+        {
+            get
+            {
+                string[] names = name.Split('.');
+                Data output = current[names[0]];
+                if (names.Length > 1)
+                {
+                    for (int i = 1; i < names.Length; i++)
+                    {
+                        if (output is not Container container)
+                            throw new Exception($"not a container {i}");
+                        output = container[names[i], this];
+                    }
+                }
+                return output;
+            }
+        }
+
         protected short nextMemory = 0;
     }
 }

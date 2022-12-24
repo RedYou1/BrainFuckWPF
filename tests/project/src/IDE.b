@@ -2,7 +2,7 @@ include Other;
 
 func funcIf
 {
-    byte a 'B';
+    Byte a 'B';
     if a
     {
         sub a 1;
