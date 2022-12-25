@@ -213,7 +213,7 @@ namespace Compiler
             }
         }
 
-        private static void initNumber<T>(Compiler comp, CodeWriter CodeWriter, string name, string? value, bool needReset)
+        public static void InitNumber<T>(Compiler comp, CodeWriter CodeWriter, string name, string? value, bool needReset)
             where T : ValueType
         {
             T v = comp.Memory.Add<T>(CodeWriter, name);
@@ -311,114 +311,6 @@ namespace Compiler
                             return ReturnCode.BadArgs;
                         }
                         Compile(Path, Path + args[1], "", this);
-                        break;
-                    }
-                case nameof(Bool):
-                    {
-                        if (CodeWriter == null)
-                            return ReturnCode.WrongStart;
-                        if (args.Length < 2)
-                        {
-                            return ReturnCode.BadArgs;
-                        }
-                        initNumber<Bool>(this, CodeWriter, args[1], args.Length >= 3 ? args[2] : null, needReset);
-                        break;
-                    }
-                case nameof(Byte):
-                    {
-                        if (CodeWriter == null)
-                            return ReturnCode.WrongStart;
-                        if (args.Length < 2)
-                        {
-                            return ReturnCode.BadArgs;
-                        }
-                        initNumber<Byte>(this, CodeWriter, args[1], args.Length >= 3 ? args[2] : null, needReset);
-                        break;
-                    }
-                case nameof(Char):
-                    {
-                        if (CodeWriter == null)
-                            return ReturnCode.WrongStart;
-                        if (args.Length < 2)
-                        {
-                            return ReturnCode.BadArgs;
-                        }
-                        initNumber<Char>(this, CodeWriter, args[1], args.Length >= 3 ? args[2] : null, needReset);
-                        break;
-                    }
-                case nameof(Short):
-                    {
-                        if (CodeWriter == null)
-                            return ReturnCode.WrongStart;
-                        if (args.Length < 2)
-                        {
-                            return ReturnCode.BadArgs;
-                        }
-                        initNumber<Short>(this, CodeWriter, args[1], args.Length >= 3 ? args[2] : null, needReset);
-                        break;
-                    }
-                case nameof(Int):
-                    {
-                        if (CodeWriter == null)
-                            return ReturnCode.WrongStart;
-                        if (args.Length < 2)
-                        {
-                            return ReturnCode.BadArgs;
-                        }
-                        initNumber<Int>(this, CodeWriter, args[1], args.Length >= 3 ? args[2] : null, needReset);
-                        break;
-                    }
-                case nameof(Array):
-                    {
-                        if (CodeWriter == null)
-                            return ReturnCode.WrongStart;
-                        if (args.Length < 4)
-                        {
-                            return ReturnCode.BadArgs;
-                        }
-                        var t = ValueType.Types[args[2]];
-                        short amount = short.Parse(args[3]);
-                        Array s = Memory.Add<Array>(CodeWriter, args[1], (short)(t.size * amount)
-                            , Array.ConstructorOf(t.size, amount));
-                        if (args.Length >= 4 + amount)
-                        {
-                            for (short i = 0; i < amount; i++)
-                            {
-                                ValueType v = t.constructor((short)(s.Address + i));
-                                v.Add(this, CodeWriter, args[4 + i], needReset);
-                            }
-                        }
-                        break;
-                    }
-                case nameof(String):
-                    {
-                        if (CodeWriter == null)
-                            return ReturnCode.WrongStart;
-                        if (args.Length < 3)
-                        {
-                            return ReturnCode.BadArgs;
-                        }
-                        if (Memory.ContainName(args[2]))
-                        {
-                            Data from = Memory[args[2]];
-                            Data to = Memory.Add<String>(CodeWriter, args[1], from.Size, String.ConstructorOf(from.Size));
-                            CopyData(CodeWriter, from, to, false, needReset);
-                        }
-                        else if (short.TryParse(args[2], out short value))
-                        {
-                            Memory.Add<String>(CodeWriter, args[1], value, String.ConstructorOf(value));
-                        }
-                        else
-                        {
-                            string stringValue = String.GetValue(args[2]);
-                            String s = Memory.Add<String>(CodeWriter, args[1], (short)stringValue.Length, String.ConstructorOf((short)stringValue.Length));
-                            for (int i = 0; i < stringValue.Length; i++)
-                            {
-                                Move(CodeWriter, (short)(s.Address + i));
-                                CodeWriter.Write(new string('+',
-                                    stringValue[i]), $"adding {stringValue[i]}");
-                            }
-                        }
                         break;
                     }
                 case "add":
@@ -523,7 +415,7 @@ namespace Compiler
                 case "struct":
                     {
                         if (args.Length < 4 || args.Length % 2 != 0
-                            || Data.Types.Contains(args[1]))
+                            || Data.Types.ContainsKey(args[1]))
                         {
                             return ReturnCode.BadArgs;
                         }
@@ -543,7 +435,7 @@ namespace Compiler
                                     size += type.size;
                                 constructor = type.constructor;
                             }
-                            else if (Data.Types.Contains(args[i]))
+                            else if (Data.Types.ContainsKey(args[i]))
                             {
                                 size = -1;
                                 throw new NotImplementedException();
@@ -555,7 +447,7 @@ namespace Compiler
 
                             datas.Add(args[i + 1], constructor);
                         }
-                        Data.Types.Add(args[1]);
+                        Data.Types.Add(args[1], Data.StructInit);
 
                         if (size != -1)
                         {
@@ -617,32 +509,8 @@ namespace Compiler
                         break;
                     }
                 default:
-                    {
-                        //struct
-                        if (ValueType.Types.ContainsKey(args[0]))
-                        {
-                            if (CodeWriter == null)
-                                return ReturnCode.WrongStart;
-                            if (args.Length < 2)
-                            {
-                                return ReturnCode.BadArgs;
-                            }
-
-                            var t = ValueType.Types[args[0]];
-                            Struct v = Memory.Add<Struct>(CodeWriter, args[1], t.size, t.constructor);
-
-                            if (args.Length < 2 + v.Datas.Length)
-                            {
-                                return ReturnCode.BadArgs;
-                            }
-
-                            for (int i = 0; i < v.Datas.Length; i++)
-                            {
-                                v.Datas[i].data.Set(this, CodeWriter, args[2 + i], needReset);
-                            }
-                            break;
-                        }
-                    }
+                    if (Data.Types.ContainsKey(args[0]))
+                        return Data.Types[args[0]].Invoke(this, args, needReset);
                     return ReturnCode.BadCommand;
             }
             return ReturnCode.OK;
