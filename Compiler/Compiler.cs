@@ -404,15 +404,19 @@ namespace Compiler
                             Data to = Memory.Add<String>(CodeWriter, args[1], from.Size, String.ConstructorOf(from.Size));
                             CopyData(CodeWriter, from, to, false, needReset);
                         }
+                        else if (short.TryParse(args[2], out short value))
+                        {
+                            Memory.Add<String>(CodeWriter, args[1], value, String.ConstructorOf(value));
+                        }
                         else
                         {
-                            string value = String.GetValue(args[2]);
-                            String s = Memory.Add<String>(CodeWriter, args[1], (short)value.Length, String.ConstructorOf((short)value.Length));
-                            for (int i = 0; i < value.Length; i++)
+                            string stringValue = String.GetValue(args[2]);
+                            String s = Memory.Add<String>(CodeWriter, args[1], (short)stringValue.Length, String.ConstructorOf((short)stringValue.Length));
+                            for (int i = 0; i < stringValue.Length; i++)
                             {
                                 Move(CodeWriter, (short)(s.Address + i));
                                 CodeWriter.Write(new string('+',
-                                    value[i]), $"adding {value[i]}");
+                                    stringValue[i]), $"adding {stringValue[i]}");
                             }
                         }
                         break;
