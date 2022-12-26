@@ -42,6 +42,7 @@ foreach persons person
     print person."genre";
 }
 
+// print all characters;
 Byte i 1;
 while i
 {

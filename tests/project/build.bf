@@ -137,6 +137,7 @@
 . //print
 >>> //move to 28
 . //print
+ //print all characters
 >> //move to 30
 + //adding 1
 [ //check 30

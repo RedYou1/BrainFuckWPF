@@ -304,6 +304,11 @@ namespace Compiler
                         Compile(Path, Path + args[1], "", this);
                         break;
                     }
+                case "//":
+                    if (CodeWriter == null)
+                        return ReturnCode.WrongStart;
+                    CodeWriter.Write("", string.Join(' ', args.Skip(1).ToArray()));
+                    break;
                 case "print":
                     {
                         if (CodeWriter == null)
