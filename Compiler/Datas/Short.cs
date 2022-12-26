@@ -10,19 +10,19 @@ namespace Compiler
 {
     public class Short : ValueType
     {
-
-        public Short(short address, short size) : base(address, Types[nameof(Short)].size)
+        public const short BytesSize = 2;
+        public Short(short address, short size) : base(address, BytesSize)
         {
             BuildInFunction.Add(BuildInFunctions.Add, Add);
             BuildInFunction.Add(BuildInFunctions.Sub, Sub);
         }
 
-        public static Short Constructor(short address) => new Short(address, Types[nameof(Short)].size);
+        public static Short Constructor(short address) => new Short(address, BytesSize);
 
-        public static ReturnCode Add(Data self, Compiler comp, string[] args, bool needReset)
+        public static void Add(Data self, Compiler comp, string[] args, bool needReset)
             => BaseAdd<Short>('+', (s) => GetValue(s), self, comp, args, needReset);
 
-        public static ReturnCode Sub(Data self, Compiler comp, string[] args, bool needReset)
+        public static void Sub(Data self, Compiler comp, string[] args, bool needReset)
             => BaseAdd<Short>('-', (s) => GetValue(s), self, comp, args, needReset);
 
         public static short GetValue(string value)

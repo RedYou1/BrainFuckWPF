@@ -12,20 +12,20 @@ namespace Compiler
 {
     public class Bool : ValueType
     {
-
-        public Bool(short address, short size) : base(address, Types[nameof(Bool)].size)
+        public const short BytesSize = 1;
+        public Bool(short address, short size) : base(address, BytesSize)
         {
             BuildInFunction.Add(BuildInFunctions.Add, Add);
             BuildInFunction.Add(BuildInFunctions.Sub, Sub);
         }
 
-        public static Bool Constructor(short address) => new Bool(address, Types[nameof(Bool)].size);
+        public static Bool Constructor(short address) => new Bool(address, BytesSize);
 
 
-        public static ReturnCode Add(Data self, Compiler comp, string[] args, bool needReset)
+        public static void Add(Data self, Compiler comp, string[] args, bool needReset)
             => BaseAdd<Bool>('+', (s) => GetValue(s) ? 1 : 0, self, comp, args, needReset);
 
-        public static ReturnCode Sub(Data self, Compiler comp, string[] args, bool needReset)
+        public static void Sub(Data self, Compiler comp, string[] args, bool needReset)
             => BaseAdd<Bool>('+', (s) => GetValue(s) ? 1 : 0, self, comp, args, needReset);
 
         public static bool GetValue(string value)

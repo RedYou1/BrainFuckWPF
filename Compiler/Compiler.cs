@@ -1,4 +1,5 @@
 ﻿using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Text.RegularExpressions;
@@ -10,21 +11,11 @@ namespace Compiler
     {
         public static bool Debug = true;
 
-        public enum ReturnCode
-        {
-            OK,
-            SourceDontExists,
-            ResultAlreadyExists,
-            BadCommand,
-            BadArgs,
-            WrongStart
-        }
-
-        public static ReturnCode Compile(string sourcePath, string startingFile, string resultPath = "", Compiler? comp = null)
+        public static CompileError? Compile(string sourcePath, string startingFile, string resultPath = "", Compiler? comp = null)
         {
             if (!Directory.Exists(sourcePath) && !File.Exists(sourcePath))
             {
-                return ReturnCode.SourceDontExists;
+                return new CompileError(CompileError.ReturnCodeEnum.SourceDontExists, "The sourcePath doesn't exists.");
             }
 
             if (comp == null)
@@ -32,11 +23,17 @@ namespace Compiler
 
             if (!File.Exists(startingFile + ".b"))
             {
-                return ReturnCode.SourceDontExists;
+                return new CompileError(CompileError.ReturnCodeEnum.SourceDontExists, "The sourcePath + .b doesn't exists.");
             }
-            ReturnCode returnCode = Compile(getFileCommands(File.ReadAllText(startingFile + ".b")), comp, false);
-            if (returnCode != ReturnCode.OK)
-                return returnCode;
+
+            try
+            {
+                Compile(getFileCommands(File.ReadAllText(startingFile + ".b")), comp, false);
+            }
+            catch (CompileError e)
+            {
+                return e;
+            }
 
             if (File.Exists(startingFile + ".f"))
             {
@@ -46,14 +43,45 @@ namespace Compiler
                     sw = File.CreateText(resultPath);
                     comp.CodeWriter = new CodeWriter(sw);
                 }
-                returnCode = Compile(getFileCommands(File.ReadAllText(startingFile + ".f")), comp, false);
-                sw?.Close();
+                try
+                {
+                    Compile(getFileCommands(File.ReadAllText(startingFile + ".f")), comp, false);
+                }
+                catch (CompileError e)
+                {
+                    return e;
+                }
+                finally
+                {
+                    sw?.Close();
+                }
             }
 
-            return returnCode;
+            return null;
         }
 
         public Dictionary<string, BFFunction> BFFunctions { get; } = new();
+
+        public Dictionary<string, Action<Compiler, string[], bool>> DataTypes =
+        new(){
+            { nameof(Bool), Data.DefaultInit<Bool> },
+            { nameof(Byte), Data.DefaultInit<Byte> },
+            { nameof(Char), Data.DefaultInit<Char> },
+            { nameof(Short), Data.DefaultInit<Short> },
+            { nameof(Int), Data.DefaultInit<Int> },
+
+            { nameof(Array), Data.ArrayInit },
+            { nameof(String), Data.StringInit },
+        };
+
+        public Dictionary<string, (short size, Func<short, ValueType> constructor)> ValueTypes =
+        new(){
+            { nameof(Bool),(Bool.BytesSize,Bool.Constructor) },
+            { nameof(Byte),(Byte.BytesSize,Byte.Constructor) },
+            { nameof(Char),(Char.BytesSize,Char.Constructor) },
+            { nameof(Short),(Short.BytesSize,Short.Constructor) },
+            { nameof(Int),(Int.BytesSize,Int.Constructor) }
+        };
 
         public Compiler(string path, StreamWriter? streamWriter)
         {
@@ -62,6 +90,11 @@ namespace Compiler
                 CodeWriter = new(streamWriter);
             Memory = new(this);
             Memory.PushStack();
+        }
+
+        public void NeedCodeWriter()
+        {
+            CompileError.NotNull(CodeWriter, "Tried to do an action without being in the starting file .f");
         }
 
         public string Path { get; }
@@ -189,18 +222,13 @@ namespace Compiler
             return values.ToArray();
         }
 
-        private static ReturnCode Compile(string[] commands, Compiler comp, bool needReset)
+        private static void Compile(string[] commands, Compiler comp, bool needReset)
         {
             foreach (string line in commands)
             {
                 string[] args = line.Split((char)1);
-                ReturnCode status = comp.compileLine(args, needReset);
-                if (status != ReturnCode.OK)
-                {
-                    return status;
-                }
+                comp.compileLine(args, needReset);
             }
-            return ReturnCode.OK;
         }
 
         public void Move(CodeWriter codeWriter, short moveTo)
@@ -242,7 +270,7 @@ namespace Compiler
 
             Memory.PushStack();
 
-            Byte temp = Memory.Add<Byte>(codeWriter, " copyData ");
+            Byte temp = Memory.Add<Byte>(this, codeWriter, " copyData ");
 
             short moveAmountA = (short)Math.Abs(to - from);
             bool dirA = to > from;
@@ -291,106 +319,100 @@ namespace Compiler
             codeWriter.Write($"[-{new string(dir ? '>' : '<', moveAmount)}+{new string(dir ? '<' : '>', moveAmount)}]", $"Add between {from} and {to}");
         }
 
-        private ReturnCode compileLine(string[] args, bool needReset)
+        private void compileLine(string[] args, bool needReset)
         {
             switch (args[0])
             {
                 case "include":
                     {
-                        if (args.Length < 2)
+                        CompileError.MinLength(args.Length, 2, "Need sometging to include");
+                        CompileError? c = Compile(Path, Path + args[1], "", this);
+                        if (c is not null)
                         {
-                            return ReturnCode.BadArgs;
+                            c.AddMessage($"include {args[1]}");
+                            throw c;
                         }
-                        Compile(Path, Path + args[1], "", this);
                         break;
                     }
                 case "//":
-                    if (CodeWriter == null)
-                        return ReturnCode.WrongStart;
-                    CodeWriter.Write("", string.Join(' ', args.Skip(1).ToArray()));
+                    NeedCodeWriter();
+                    CodeWriter!.Write("", string.Join(' ', args.Skip(1).ToArray()));
                     break;
                 case "print":
                     {
-                        if (CodeWriter == null)
-                            return ReturnCode.WrongStart;
-                        if (args.Length < 2)
-                        {
-                            return ReturnCode.BadArgs;
-                        }
+                        NeedCodeWriter();
+                        CompileError.MinLength(args.Length, 2, "Need something to print");
+
                         foreach (string arg in args.Skip(1))
                         {
                             Data v = Memory[arg];
                             for (short i = v.Address; i < v.Address + v.Size; i++)
                             {
-                                Move(CodeWriter, i);
-                                CodeWriter.Write(".", "print");
+                                Move(CodeWriter!, i);
+                                CodeWriter!.Write(".", "print");
                             }
                         }
                         break;
                     }
                 case "input":
                     {
-                        if (CodeWriter is null)
-                            return ReturnCode.WrongStart;
-                        if (args.Length < 2)
-                        {
-                            return ReturnCode.BadArgs;
-                        }
+                        NeedCodeWriter();
+                        CompileError.MinLength(args.Length, 2, "input args: {name} {type or length default Char}");
+
                         if (args.Length == 2)
                         {
-                            Char v = Memory.Add<Char>(CodeWriter, args[1]);
-                            Move(CodeWriter, v.Address);
-                            CodeWriter.Write(",", "input");
+                            Char v = Memory.Add<Char>(this, CodeWriter!, args[1]);
+                            Move(CodeWriter!, v.Address);
+                            CodeWriter!.Write(",", "input");
                         }
                         else if (short.TryParse(args[2], out short amount))
                         {
-                            String s = Memory.Add<String>(CodeWriter, args[1], amount, String.ConstructorOf(amount));
-                            Move(CodeWriter, s.Address);
-                            CodeWriter.Write(new string(',', amount), "input");
+                            String s = Memory.Add<String>(CodeWriter!, args[1], amount, String.ConstructorOf(amount));
+                            Move(CodeWriter!, s.Address);
+                            CodeWriter!.Write(new string(',', amount), "input");
                         }
-                        else if (ValueType.Types.ContainsKey(args[2]))
+                        else if (ValueTypes.ContainsKey(args[2]))
                         {
-                            var t = ValueType.Types[args[2]];
-                            Data d = Memory.Add(CodeWriter, args[1], t.size, t.constructor);
-                            Move(CodeWriter, d.Address);
-                            CodeWriter.Write(new string(',', t.size), "input");
+                            var t = ValueTypes[args[2]];
+                            Data d = Memory.Add(CodeWriter!, args[1], t.size, t.constructor);
+                            Move(CodeWriter!, d.Address);
+                            CodeWriter!.Write(new string(',', t.size), "input");
                         }
                         else
                         {
-                            return ReturnCode.BadArgs;
+                            throw new CompileError(CompileError.ReturnCodeEnum.BadArgs, "input args: {name} {type or length default Char}");
                         }
                         break;
                     }
                 case "while":
                     {
-                        if (CodeWriter == null)
-                            return ReturnCode.WrongStart;
-                        if (args.Length < 3)
-                        {
-                            return ReturnCode.BadArgs;
-                        }
+                        NeedCodeWriter();
+                        CompileError.MinLength(args.Length, 3, "structure: while {name}\n{\n}");
+
                         short address = Memory[args[1]].Address;
-                        Move(CodeWriter, address);
-                        CodeWriter.Write("[", $"check {address}");
+                        Move(CodeWriter!, address);
+                        CodeWriter!.Write("[", $"check {address}");
                         Memory.PushStack();
-                        ReturnCode r = Compile(getFileCommands(new string(args[2].Skip(1).ToArray()).Replace((char)2, ' ')), this, true);
-                        Memory.PopStack(CodeWriter, true);
-                        if (r != ReturnCode.OK)
+                        try
                         {
-                            return r;
+                            Compile(getFileCommands(new string(args[2].Skip(1).ToArray()).Replace((char)2, ' ')), this, true);
                         }
+                        catch (CompileError e)
+                        {
+                            e.AddMessage($"while {args[1]}");
+                            throw e;
+                        }
+                        Memory.PopStack(CodeWriter, true);
                         Move(CodeWriter, address);
                         CodeWriter.Write("]", $"end of {address}");
                         break;
                     }
                 case "foreach":
                     {
-                        if (CodeWriter == null)
-                            return ReturnCode.WrongStart;
-                        if (args.Length < 4 || !Memory.ContainName(args[1]))
-                            return ReturnCode.BadArgs;
-                        if (Memory[args[1]] is not Array arr)
-                            return ReturnCode.BadArgs;
+                        NeedCodeWriter();
+                        CompileError.MinLength(args.Length, 4, "structure: foreach {arrayName} {elementName}\n{\n}");
+                        if (!Memory.ContainName(args[1]) || Memory[args[1]] is not Array arr)
+                            throw new CompileError(CompileError.ReturnCodeEnum.BadArgs, $"foreach arrayName ({args[1]}) doesn't exists or isn't an array");
 
                         string[] commands = getFileCommands(new string(args[3].Skip(1).ToArray()).Replace((char)2, ' '));
 
@@ -399,31 +421,40 @@ namespace Compiler
                             Data element = arr.Get(i);
                             Memory.PushStack();
                             Memory.AddToCurrent(args[2], element, true);
-                            ReturnCode r = Compile(commands, this, true);
-                            Memory.PopStack(CodeWriter, true);
-                            if (r != ReturnCode.OK)
-                                return r;
+                            try
+                            {
+                                Compile(commands, this, true);
+                            }
+                            catch (CompileError e)
+                            {
+                                e.AddMessage($"foreach {args[1]} {args[2]}");
+                                throw e;
+                            }
+                            Memory.PopStack(CodeWriter!, true);
                         }
                         break;
                     }
                 case "if":
                     {
-                        if (CodeWriter == null)
-                            return ReturnCode.WrongStart;
-                        if (args.Length < 3)
-                        {
-                            return ReturnCode.BadArgs;
-                        }
+                        NeedCodeWriter();
+                        CompileError.MinLength(args.Length, 3, "structure: if {name}\n{\n}");
+
                         short address = Memory[args[1]].Address;
-                        Move(CodeWriter, address);
-                        CodeWriter.Write("[", $"check {address}");
+                        Move(CodeWriter!, address);
+                        CodeWriter!.Write("[", $"check {address}");
                         Memory.PushStack();
-                        ReturnCode r = Compile(getFileCommands(new string(args[2].Skip(1).ToArray()).Replace((char)2, ' ')), this, needReset);
-                        if (r != ReturnCode.OK)
+
+                        try
                         {
-                            return r;
+                            Compile(getFileCommands(new string(args[2].Skip(1).ToArray()).Replace((char)2, ' ')), this, needReset);
                         }
-                        Byte v = Memory.Add<Byte>(CodeWriter, " if ");
+                        catch (CompileError e)
+                        {
+                            e.AddMessage($"if {args[1]}");
+                            throw e;
+                        }
+
+                        Byte v = Memory.Add<Byte>(this, CodeWriter, " if ");
                         Move(CodeWriter, v.Address);
                         Memory.PopStack(CodeWriter, needReset);
                         CodeWriter.Write("]", $"end of {address}");
@@ -431,65 +462,65 @@ namespace Compiler
                     }
                 case "struct":
                     {
-                        if (args.Length < 4 || args.Length % 2 != 0
-                            || Data.Types.ContainsKey(args[1]))
-                        {
-                            return ReturnCode.BadArgs;
-                        }
+                        CompileError.MinLength(args.Length, 4, "structure: struct {name} ({type} {name}) at least one");
+                        if (args.Length % 2 != 0)
+                            throw new CompileError(CompileError.ReturnCodeEnum.BadArgs, "structure: struct {name} ({type} {name}) at least one");
+                        if (DataTypes.ContainsKey(args[1]))
+                            throw new CompileError(CompileError.ReturnCodeEnum.BadArgs, $"The struct name ({args[1]}) already exists.");
 
                         short size = 0;// -1 -> not ValueType
                         Dictionary<string, Func<short, Data>> datas = new();
                         for (int i = 2; i < args.Length; i += 2)
                         {
-                            if (datas.ContainsKey(args[i]))
-                                return ReturnCode.BadArgs;
+                            if (datas.ContainsKey(args[i + 1]))
+                                throw new CompileError(CompileError.ReturnCodeEnum.BadArgs, $"The name ({args[i + 1]}) already exists in struct.");
 
                             Func<short, Data> constructor;
-                            if (ValueType.Types.ContainsKey(args[i]))
+                            if (ValueTypes.ContainsKey(args[i]))
                             {
-                                var type = ValueType.Types[args[i]];
+                                var type = ValueTypes[args[i]];
                                 if (size != -1)
                                     size += type.size;
                                 constructor = type.constructor;
                             }
-                            else if (Data.Types.ContainsKey(args[i]))
+                            else if (DataTypes.ContainsKey(args[i]))
                             {
                                 size = -1;
                                 throw new NotImplementedException();
                             }
                             else
                             {
-                                return ReturnCode.BadArgs;
+                                throw new CompileError(CompileError.ReturnCodeEnum.BadArgs, $"The type ({args[i]}) doesn't exists.");
                             }
 
                             datas.Add(args[i + 1], constructor);
                         }
-                        Data.Types.Add(args[1], Data.StructInit);
+                        DataTypes.Add(args[1], Data.StructInit);
 
                         if (size != -1)
                         {
-                            ValueType.Types.Add(args[1], (size, (address) =>
+                            ValueTypes.Add(args[1], (size, (address) =>
+                            {
+                                short i = 0;
+                                List<(string, Data)> sdatas = new();
+                                foreach (var e in datas)
                                 {
-                                    short i = 0;
-                                    List<(string, Data)> sdatas = new();
-                                    foreach (var e in datas)
-                                    {
-                                        Data d = e.Value((short)(address + i));
-                                        sdatas.Add((e.Key, d));
-                                        i += d.Size;
-                                    }
-                                    return new Struct(address, sdatas.ToArray());
+                                    Data d = e.Value((short)(address + i));
+                                    sdatas.Add((e.Key, d));
+                                    i += d.Size;
                                 }
+                                return new Struct(address, sdatas.ToArray());
+                            }
                             ));
                         }
                         break;
                     }
                 case "func":
                     {
-                        if (args.Length < 3 || args.Length % 2 == 0)
-                        {
-                            return ReturnCode.BadArgs;
-                        }
+                        CompileError.MinLength(args.Length, 3, "structure: func {name} ({type} {name})\n{\n}");
+                        if (args.Length % 2 == 0)
+                            throw new CompileError(CompileError.ReturnCodeEnum.BadArgs, "structure: func {name} ({type} {name}) at least one\n{\n}");
+
                         string[] to = new string[(args.Length - 3) / 2];
                         for (int i = 3; i < args.Length - 1; i += 2)
                         {
@@ -499,46 +530,58 @@ namespace Compiler
                             (Compiler comp, CodeWriter codeWriter, string[] args2, bool needReset) =>
                         {
                             comp.Memory.PushFunc(args2, to);
-                            ReturnCode r = Compile(getFileCommands(new string(args[args.Length - 1].Skip(1).ToArray()).Replace((char)2, ' ')), this, needReset);
+                            try
+                            {
+                                Compile(getFileCommands(new string(args[args.Length - 1].Skip(1).ToArray()).Replace((char)2, ' ')), this, needReset);
+                            }
+                            catch (CompileError e)
+                            {
+                                e.AddMessage($"func {args[1]}");
+                                throw e;
+                            }
                             comp.Memory.PopFunc(codeWriter, needReset);
-                            return r;
                         }));
                         break;
                     }
                 case "call":
                     {
-                        if (CodeWriter == null)
-                            return ReturnCode.WrongStart;
-                        if (args.Length < 2 || !BFFunctions.ContainsKey(args[1]))
-                        {
-                            return ReturnCode.BadArgs;
-                        }
+                        NeedCodeWriter();
+                        CompileError.MinLength(args.Length, 2, "structure: call {name} {args}");
+                        if (!BFFunctions.ContainsKey(args[1]))
+                            throw new CompileError(CompileError.ReturnCodeEnum.BadArgs, $"function {args[1]} doesn't exists.");
+
                         BFFunction func = BFFunctions[args[1]];
                         if (args.Length < 2 + func.NumberArgs)
+                            throw new CompileError(CompileError.ReturnCodeEnum.BadArgs, $"bad amount of args for the function {args[1]}.");
+
+                        try
                         {
-                            return ReturnCode.BadArgs;
+                            func.Action(this, CodeWriter!, args.Skip(2).ToArray(), needReset);
                         }
-                        ReturnCode r = func.Action(this, CodeWriter, args.Skip(2).ToArray(), needReset);
-                        if (r != ReturnCode.OK)
+                        catch (CompileError e)
                         {
-                            return r;
+                            e.AddMessage(string.Join(' ', args));
+                            throw e;
                         }
                         break;
                     }
                 default:
-                    if (Data.Types.ContainsKey(args[0]))
-                        return Data.Types[args[0]].Invoke(this, args, needReset);
+                    if (DataTypes.ContainsKey(args[0]))
+                    {
+                        DataTypes[args[0]].Invoke(this, args, needReset);
+                        return;
+                    }
                     if (Memory.ContainName(args[1]))
                     {
                         Data d = Memory[args[1]];
                         if (d.BuildInFunction.ContainsKey(args[0]))
                         {
-                            return d.BuildInFunction[args[0]].Invoke(d, this, args, needReset);
+                            d.BuildInFunction[args[0]].Invoke(d, this, args, needReset);
+                            return;
                         }
                     }
-                    return ReturnCode.BadCommand;
+                    throw new CompileError(CompileError.ReturnCodeEnum.BadCommand, $"this command doesn't exists {string.Join(' ', args)}");
             }
-            return ReturnCode.OK;
         }
     }
 }

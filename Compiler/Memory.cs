@@ -46,10 +46,10 @@ namespace Compiler
             return true;
         }
 
-        public T Add<T>(CodeWriter codeWriter, string name)
+        public T Add<T>(Compiler comp, CodeWriter codeWriter, string name)
             where T : ValueType
         {
-            var type = ValueType.Types[typeof(T).Name];
+            var type = comp.ValueTypes[typeof(T).Name];
             return (T)Add(codeWriter, name, type.size, type.constructor);
         }
 

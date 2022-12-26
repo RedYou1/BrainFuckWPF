@@ -123,7 +123,7 @@ namespace IDE
             }
         }
 
-        public Compiler.Compiler.ReturnCode Compile()
+        public Compiler.CompileError? Compile()
         {
             bFProj.SaveAllFile();
             UpdateActiveFiles();
@@ -131,10 +131,10 @@ namespace IDE
             return Compiler.Compiler.Compile(Path + "/src/", Path + "/src/" + bFProj.StartingFile, Path + "/build.bf");
         }
 
-        public Compiler.Compiler.ReturnCode Play()
+        public Compiler.CompileError? Play()
         {
             var r = Compile();
-            if (r != Compiler.Compiler.ReturnCode.OK)
+            if (r is not null)
                 return r;
             playScreen.Content = new BrainFuck.Interpreter(Compiler.Compiler.Debug, true, Path + "/build.bf");
             playScreen.IsSelected = true;
@@ -213,15 +213,15 @@ namespace IDE
         private void btnCompile_Click(object sender, RoutedEventArgs e)
         {
             var r = Compile();
-            if (r != Compiler.Compiler.ReturnCode.OK)
-                MessageBox.Show($"Can't compile because of {r} error");
+            if (r is not null)
+                MessageBox.Show(r.MessagesToString());
         }
 
         private void btnPlay_Click(object sender, RoutedEventArgs e)
         {
             var r = Play();
-            if (r != Compiler.Compiler.ReturnCode.OK)
-                MessageBox.Show($"Can't play because of {r} error in compile");
+            if (r is not null)
+                MessageBox.Show(r.MessagesToString());
         }
 
         private void btnStop_Click(object sender, RoutedEventArgs e)

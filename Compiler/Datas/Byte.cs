@@ -12,19 +12,19 @@ namespace Compiler
 {
     public class Byte : ValueType
     {
-
-        public Byte(short address, short size) : base(address, Types[nameof(Byte)].size)
+        public const short BytesSize = 1;
+        public Byte(short address, short size) : base(address, BytesSize)
         {
             BuildInFunction.Add(BuildInFunctions.Add, Add);
             BuildInFunction.Add(BuildInFunctions.Sub, Sub);
         }
 
-        public static Byte Constructor(short address) => new Byte(address, Types[nameof(Byte)].size);
+        public static Byte Constructor(short address) => new Byte(address, BytesSize);
 
-        public static ReturnCode Add(Data self, Compiler comp, string[] args, bool needReset)
+        public static void Add(Data self, Compiler comp, string[] args, bool needReset)
             => BaseAdd<Byte>('+', (s) => GetValue(s), self, comp, args, needReset);
 
-        public static ReturnCode Sub(Data self, Compiler comp, string[] args, bool needReset)
+        public static void Sub(Data self, Compiler comp, string[] args, bool needReset)
             => BaseAdd<Byte>('-', (s) => GetValue(s), self, comp, args, needReset);
 
         public static byte GetValue(string value)

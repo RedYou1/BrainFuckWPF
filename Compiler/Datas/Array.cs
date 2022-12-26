@@ -19,10 +19,10 @@ namespace Compiler
             Constructor = constructor;
         }
 
-        public static Func<short, Array> ConstructorOf<T>(short amount)
+        public static Func<short, Array> ConstructorOf<T>(Compiler comp, short amount)
             where T : ValueType
         {
-            var t = ValueType.Types[typeof(T).Name];
+            var t = comp.ValueTypes[typeof(T).Name];
             return (address) => new Array(address, t.size, amount, t.constructor);
         }
 

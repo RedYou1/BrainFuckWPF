@@ -10,19 +10,19 @@ namespace Compiler
 {
     public class Int : ValueType
     {
-
-        public Int(short address, short size) : base(address, Types[nameof(Int)].size)
+        public const short BytesSize = 4;
+        public Int(short address, short size) : base(address, BytesSize)
         {
             BuildInFunction.Add(BuildInFunctions.Add, Add);
             BuildInFunction.Add(BuildInFunctions.Sub, Sub);
         }
 
-        public static Int Constructor(short address) => new Int(address, Types[nameof(Int)].size);
+        public static Int Constructor(short address) => new Int(address, BytesSize);
 
-        public static ReturnCode Add(Data self, Compiler comp, string[] args, bool needReset)
+        public static void Add(Data self, Compiler comp, string[] args, bool needReset)
             => BaseAdd<Int>('+', (s) => GetValue(s), self, comp, args, needReset);
 
-        public static ReturnCode Sub(Data self, Compiler comp, string[] args, bool needReset)
+        public static void Sub(Data self, Compiler comp, string[] args, bool needReset)
             => BaseAdd<Int>('-', (s) => GetValue(s), self, comp, args, needReset);
 
         public static int GetValue(string value)

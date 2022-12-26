@@ -11,29 +11,28 @@ namespace Compiler
     public class String : Array
     {
         public String(short address, short elementSize, short amount)
-            : base(address, elementSize, amount, ValueType.Types[nameof(Char)].constructor)
+            : base(address, elementSize, amount, Char.Constructor)
         {
             BuildInFunction.Add(ValueType.BuildInFunctions.Set, Set);
         }
 
         public static Func<short, String> ConstructorOf(short amount)
-            => (address) => new String(address, ValueType.Types[nameof(Char)].size, amount);
+            => (address) => new String(address, Char.BytesSize, amount);
 
 
-        public ReturnCode Set(Data data, Compiler comp, string[] args, bool needReset)
+        public void Set(Data data, Compiler comp, string[] args, bool needReset)
         {
-            if (comp.CodeWriter is null)
-                return ReturnCode.WrongStart;
+            comp.NeedCodeWriter();
 
             for (short i = Address; i < Address + Size; i++)
             {
-                comp.Move(comp.CodeWriter, i);
-                comp.CodeWriter.Write("[-]", "reset Set");
+                comp.Move(comp.CodeWriter!, i);
+                comp.CodeWriter!.Write("[-]", "reset Set");
             }
             if (comp.Memory.ContainName(args[2]))
             {
                 Data from = comp.Memory[args[2]];
-                comp.CopyData(comp.CodeWriter, from, this, true, needReset);
+                comp.CopyData(comp.CodeWriter!, from, this, true, needReset);
             }
             else
             {
@@ -42,11 +41,10 @@ namespace Compiler
                     throw new Exception($"value {args[2]} dont fit in string of {Size}");
                 for (short i = 0; i < value.Length; i++)
                 {
-                    comp.Move(comp.CodeWriter, (short)(Address + i));
-                    comp.CodeWriter.Write(new string('+', (byte)value[i]), $"set string {i} to {value[i]}");
+                    comp.Move(comp.CodeWriter!, (short)(Address + i));
+                    comp.CodeWriter!.Write(new string('+', (byte)value[i]), $"set string {i} to {value[i]}");
                 }
             }
-            return ReturnCode.OK;
         }
 
         public static string GetValue(string value)
