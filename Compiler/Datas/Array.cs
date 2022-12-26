@@ -10,28 +10,27 @@ namespace Compiler
     {
         public short ElementSize { get; }
         public short Amount { get; }
+        public Func<short, Data> Constructor { get; }
 
-        public Array(short address, short elementSize, short amount) : base(address, (short)(amount * elementSize))
+        public Array(short address, short elementSize, short amount, Func<short, Data> constructor) : base(address, (short)(amount * elementSize))
         {
             ElementSize = elementSize;
             Amount = amount;
-        }
-
-        public override void Set(Compiler comp, CodeWriter codeWriter, string stringValue, bool needReset)
-        {
-            throw new Exception("Can't set an Array class");
+            Constructor = constructor;
         }
 
         public static Func<short, Array> ConstructorOf<T>(short amount)
             where T : ValueType
-            => (address) => new Array(address, ValueType.Types[typeof(T).Name].size, amount);
+        {
+            var t = ValueType.Types[typeof(T).Name];
+            return (address) => new Array(address, t.size, amount, t.constructor);
+        }
 
-        public static Func<short, Array> ConstructorOf(short elementSize, short amount)
-            => (address) => new Array(address, elementSize, amount);
+        public static Func<short, Array> ConstructorOf(short elementSize, short amount, Func<short, Data> constructor)
+            => (address) => new Array(address, elementSize, amount, constructor);
 
-        public T Get<T>(short index, Func<short, T> constructor)
-            where T : Data
-            => constructor((short)(Address + index));
+        public Data Get(short index)
+            => Constructor((short)(Address + index * ElementSize));
 
         public bool ContainsKey(string name)
         {
@@ -48,7 +47,7 @@ namespace Compiler
             {
                 if (short.TryParse(name, out short index))
                 {
-                    return Get(index, (address) => new ValueType(address, ElementSize));
+                    return Get(index);
                 }
                 throw new NotImplementedException();
             }

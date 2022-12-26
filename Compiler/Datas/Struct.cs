@@ -17,16 +17,6 @@ namespace Compiler
             Datas = datas;
         }
 
-        public override void Add(Compiler comp, CodeWriter codeWriter, string stringValue, bool needReset)
-        {
-            throw new Exception("Can't add a Struct class");
-        }
-
-        public override void Sub(Compiler comp, CodeWriter codeWriter, string stringValue)
-        {
-            throw new Exception("Can't sub a Struct class");
-        }
-
         public bool ContainsKey(string name)
         {
             if (Regex.Match(name, @"^'\\{0,1}.'$").Success || Regex.Match(name, "^\"\\\\{0,1}.+\"$").Success)

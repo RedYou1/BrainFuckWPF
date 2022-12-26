@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+﻿using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Net;
 
@@ -8,7 +9,7 @@ namespace Compiler
     {
         private Stack<Dictionary<string, Data>> memory = new();
 
-        private Stack<List<string>> name = new();
+        private Stack<List<(string name, bool reference)>> name = new();
 
         private Dictionary<string, Data> current => memory.Peek();
 
@@ -56,7 +57,7 @@ namespace Compiler
             where T : Data
             => (T)Add(codeWriter, name, size, constructor);
 
-        private Data Add(CodeWriter codeWriter, string name, short size, Func<short, Data> constructor)
+        public Data Add(CodeWriter codeWriter, string name, short size, Func<short, Data> constructor)
         {
             if (nextMemory == 29999)
             {
@@ -69,8 +70,7 @@ namespace Compiler
                         unUsed.Add(new Data((short)(v.Address + size), (short)(v.Size - size)));
                     }
                     v = constructor(v.Address);
-                    current.Add(name, v);
-                    this.name.Peek().Add(name);
+                    AddToCurrent(name, v);
                     return v;
                 }
                 else if (garbages.Any(v => v.Size >= size))
@@ -82,8 +82,7 @@ namespace Compiler
                         garbages.Add(new Data((short)(v.Address + size), (short)(v.Size - size)));
                     }
                     v = constructor(v.Address);
-                    current.Add(name, v);
-                    this.name.Peek().Add(name);
+                    AddToCurrent(name, v);
                     for (short i = v.Address; i < v.Address + size; i++)
                     {
                         Compiler.Move(codeWriter, i);
@@ -103,8 +102,7 @@ namespace Compiler
             else
             {
                 Data v = constructor(nextMemory);
-                current.Add(name, v);
-                this.name.Peek().Add(name);
+                AddToCurrent(name, v);
                 nextMemory += size;
                 return v;
             }
@@ -166,18 +164,26 @@ namespace Compiler
         public void PushStack() => name.Push(new());
         public void PopStack(CodeWriter codeWriter, bool needReset)
         {
-            List<string>? names;
-            if (name.TryPop(out names))
+            if (name.TryPop(out var names))
             {
-                foreach (string name in names)
+                foreach (var name in names)
                 {
-                    remove(codeWriter, needReset, name);
+                    if (name.reference)
+                        current.Remove(name.name);
+                    else
+                        remove(codeWriter, needReset, name.name);
                 }
             }
             else
             {
                 throw new Exception("no stack");
             }
+        }
+
+        public void AddToCurrent(string name, Data value, bool isAReference = false)
+        {
+            current.Add(name, value);
+            this.name.Peek().Add((name, isAReference));
         }
 
         public Data this[string name]

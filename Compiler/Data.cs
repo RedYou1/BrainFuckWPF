@@ -13,16 +13,13 @@ namespace Compiler
         public short Address { get; }
         public short Size { get; }
 
+        public Dictionary<string, Func<Data, Compiler, string[], bool, ReturnCode>> BuildInFunction { get; } = new();
+
         public Data(short address, short size)
         {
             Address = address;
             Size = size;
             AddressArray = Enumerable.Range(Address, Size).Select(x => (short)x).ToArray();
-        }
-
-        public virtual void Set(Compiler comp, CodeWriter codeWriter, string stringValue, bool needReset)
-        {
-            throw new Exception("Can't set a Data class");
         }
 
         public readonly short[] AddressArray;
@@ -51,7 +48,7 @@ namespace Compiler
             T v = comp.Memory.Add<T>(comp.CodeWriter, args[1]);
             if (args.Length >= 3)
             {
-                v.Add(comp, comp.CodeWriter, args[2], needReset);
+                return v.BuildInFunction[ValueType.BuildInFunctions.Add](v, comp, new string[] { "", "", args[2] }, needReset);
             }
             return ReturnCode.OK;
         }
@@ -67,13 +64,15 @@ namespace Compiler
             var t = ValueType.Types[args[2]];
             short amount = short.Parse(args[3]);
             Array s = comp.Memory.Add<Array>(comp.CodeWriter, args[1], (short)(t.size * amount)
-                , Array.ConstructorOf(t.size, amount));
+                , Array.ConstructorOf(t.size, amount, t.constructor));
             if (args.Length >= 4 + amount)
             {
                 for (short i = 0; i < amount; i++)
                 {
                     ValueType v = t.constructor((short)(s.Address + i));
-                    v.Add(comp, comp.CodeWriter, args[4 + i], needReset);
+                    ReturnCode r = v.BuildInFunction[ValueType.BuildInFunctions.Add](v, comp, new string[] { "", "", args[4 + i] }, needReset);
+                    if (r != ReturnCode.OK)
+                        return r;
                 }
             }
             return ReturnCode.OK;
@@ -130,7 +129,10 @@ namespace Compiler
 
             for (int i = 0; i < v.Datas.Length; i++)
             {
-                v.Datas[i].data.Set(comp, comp.CodeWriter, args[2 + i], needReset);
+                ReturnCode r = v.Datas[i].data.BuildInFunction[ValueType.BuildInFunctions.Set]
+                    (v.Datas[i].data, comp, new string[] { "", "", args[2 + i] }, needReset);
+                if (r != ReturnCode.OK)
+                    return r;
             }
             return ReturnCode.OK;
         }

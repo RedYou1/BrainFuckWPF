@@ -4,44 +4,50 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using static Compiler.Compiler;
 
 namespace Compiler
 {
     public class String : Array
     {
         public String(short address, short elementSize, short amount)
-            : base(address, elementSize, amount) { }
+            : base(address, elementSize, amount, ValueType.Types[nameof(Char)].constructor)
+        {
+            BuildInFunction.Add(ValueType.BuildInFunctions.Set, Set);
+        }
 
         public static Func<short, String> ConstructorOf(short amount)
             => (address) => new String(address, ValueType.Types[nameof(Char)].size, amount);
 
-        public override void Set(Compiler comp, CodeWriter codeWriter, string stringValue, bool needReset)
+
+        public ReturnCode Set(Data data, Compiler comp, string[] args, bool needReset)
         {
+            if (comp.CodeWriter is null)
+                return ReturnCode.WrongStart;
+
             for (short i = Address; i < Address + Size; i++)
             {
-                comp.Move(codeWriter, i);
-                codeWriter.Write("[-]", "reset Set");
+                comp.Move(comp.CodeWriter, i);
+                comp.CodeWriter.Write("[-]", "reset Set");
             }
-            if (comp.Memory.ContainName(stringValue))
+            if (comp.Memory.ContainName(args[2]))
             {
-                Data from = comp.Memory[stringValue];
-                comp.CopyData(codeWriter, from, this, true, needReset);
+                Data from = comp.Memory[args[2]];
+                comp.CopyData(comp.CodeWriter, from, this, true, needReset);
             }
             else
             {
-                string value = GetValue(stringValue);
+                string value = GetValue(args[2]);
                 if (value.Length > Size)
-                    throw new Exception($"value {stringValue} dont fit in string of {Size}");
+                    throw new Exception($"value {args[2]} dont fit in string of {Size}");
                 for (short i = 0; i < value.Length; i++)
                 {
-                    comp.Move(codeWriter, (short)(Address + i));
-                    codeWriter.Write(new string('+', (byte)value[i]), $"set string {i} to {value[i]}");
+                    comp.Move(comp.CodeWriter, (short)(Address + i));
+                    comp.CodeWriter.Write(new string('+', (byte)value[i]), $"set string {i} to {value[i]}");
                 }
             }
+            return ReturnCode.OK;
         }
-
-        public Char Get(short index)
-            => new Char((short)(Address + index), ValueType.Types[nameof(Char)].size);
 
         public static string GetValue(string value)
         {

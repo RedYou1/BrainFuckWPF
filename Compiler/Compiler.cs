@@ -1,5 +1,6 @@
 ﻿using System.Drawing;
 using System.IO;
+using System.Net;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
@@ -213,16 +214,6 @@ namespace Compiler
             }
         }
 
-        public static void InitNumber<T>(Compiler comp, CodeWriter CodeWriter, string name, string? value, bool needReset)
-            where T : ValueType
-        {
-            T v = comp.Memory.Add<T>(CodeWriter, name);
-            if (value != null)
-            {
-                v.Add(comp, CodeWriter, value, needReset);
-            }
-        }
-
         public void CopyData(CodeWriter codeWriter, Data from, Data to, bool set2ToZero, bool needReset)
         {
             if (from.Address == to.Address)
@@ -313,28 +304,6 @@ namespace Compiler
                         Compile(Path, Path + args[1], "", this);
                         break;
                     }
-                case "add":
-                    {
-                        if (CodeWriter == null)
-                            return ReturnCode.WrongStart;
-                        if (args.Length < 3)
-                        {
-                            return ReturnCode.BadArgs;
-                        }
-                        ((ValueType)Memory[args[1]]).Add(this, CodeWriter, args[2], needReset);
-                        break;
-                    }
-                case "sub":
-                    {
-                        if (CodeWriter == null)
-                            return ReturnCode.WrongStart;
-                        if (args.Length < 3)
-                        {
-                            return ReturnCode.BadArgs;
-                        }
-                        ((ValueType)Memory[args[1]]).Sub(this, CodeWriter, args[2]);
-                        break;
-                    }
                 case "print":
                     {
                         if (CodeWriter == null)
@@ -356,15 +325,35 @@ namespace Compiler
                     }
                 case "input":
                     {
-                        if (CodeWriter == null)
+                        if (CodeWriter is null)
                             return ReturnCode.WrongStart;
                         if (args.Length < 2)
                         {
                             return ReturnCode.BadArgs;
                         }
-                        Byte v = Memory.Add<Byte>(CodeWriter, args[1]);
-                        Move(CodeWriter, v.Address);
-                        CodeWriter.Write(",", "input");
+                        if (args.Length == 2)
+                        {
+                            Char v = Memory.Add<Char>(CodeWriter, args[1]);
+                            Move(CodeWriter, v.Address);
+                            CodeWriter.Write(",", "input");
+                        }
+                        else if (short.TryParse(args[2], out short amount))
+                        {
+                            String s = Memory.Add<String>(CodeWriter, args[1], amount, String.ConstructorOf(amount));
+                            Move(CodeWriter, s.Address);
+                            CodeWriter.Write(new string(',', amount), "input");
+                        }
+                        else if (ValueType.Types.ContainsKey(args[2]))
+                        {
+                            var t = ValueType.Types[args[2]];
+                            Data d = Memory.Add(CodeWriter, args[1], t.size, t.constructor);
+                            Move(CodeWriter, d.Address);
+                            CodeWriter.Write(new string(',', t.size), "input");
+                        }
+                        else
+                        {
+                            return ReturnCode.BadArgs;
+                        }
                         break;
                     }
                 case "while":
@@ -387,6 +376,29 @@ namespace Compiler
                         }
                         Move(CodeWriter, address);
                         CodeWriter.Write("]", $"end of {address}");
+                        break;
+                    }
+                case "foreach":
+                    {
+                        if (CodeWriter == null)
+                            return ReturnCode.WrongStart;
+                        if (args.Length < 4 || !Memory.ContainName(args[1]))
+                            return ReturnCode.BadArgs;
+                        if (Memory[args[1]] is not Array arr)
+                            return ReturnCode.BadArgs;
+
+                        string[] commands = getFileCommands(new string(args[3].Skip(1).ToArray()).Replace((char)2, ' '));
+
+                        for (short i = 0; i < arr.Amount; i++)
+                        {
+                            Data element = arr.Get(i);
+                            Memory.PushStack();
+                            Memory.AddToCurrent(args[2], element, true);
+                            ReturnCode r = Compile(commands, this, true);
+                            Memory.PopStack(CodeWriter, true);
+                            if (r != ReturnCode.OK)
+                                return r;
+                        }
                         break;
                     }
                 case "if":
@@ -511,6 +523,14 @@ namespace Compiler
                 default:
                     if (Data.Types.ContainsKey(args[0]))
                         return Data.Types[args[0]].Invoke(this, args, needReset);
+                    if (Memory.ContainName(args[1]))
+                    {
+                        Data d = Memory[args[1]];
+                        if (d.BuildInFunction.ContainsKey(args[0]))
+                        {
+                            return d.BuildInFunction[args[0]].Invoke(d, this, args, needReset);
+                        }
+                    }
                     return ReturnCode.BadCommand;
             }
             return ReturnCode.OK;

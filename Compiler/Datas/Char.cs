@@ -6,45 +6,26 @@ using System.Reflection.Emit;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using static Compiler.Compiler;
 
 namespace Compiler
 {
     public class Char : ValueType
     {
+
         public Char(short address, short size) : base(address, Types[nameof(Char)].size)
         {
+            BuildInFunction.Add(BuildInFunctions.Add, Add);
+            BuildInFunction.Add(BuildInFunctions.Sub, Sub);
         }
 
         public static Char Constructor(short address) => new Char(address, Types[nameof(Char)].size);
 
-        public override void Add(Compiler comp, CodeWriter codeWriter, string stringValue, bool needReset)
-        {
-            if (comp.Memory.ContainName(stringValue))
-            {
-                Data from = comp.Memory[stringValue];
-                if (from.Size != Types[nameof(Char)].size)
-                    throw new Exception("Char add not same size");
+        public static ReturnCode Add(Data self, Compiler comp, string[] args, bool needReset)
+            => BaseAdd<Char>('+', (s) => Byte.GetValue(s), self, comp, args, needReset);
 
-                comp.CopyData(codeWriter, from, this, false, needReset);
-            }
-            else
-            {
-                comp.Move(codeWriter, Address);
-                char value = GetValue(stringValue);
-                codeWriter.Write(
-                    new string('+',
-                        value), $"adding {value}");
-            }
-        }
-
-        public override void Sub(Compiler comp, CodeWriter codeWriter, string stringValue)
-        {
-            comp.Move(codeWriter, Address);
-            char value = GetValue(stringValue);
-            codeWriter.Write(
-                new string('-',
-                    value), $"substracting {value}");
-        }
+        public static ReturnCode Sub(Data self, Compiler comp, string[] args, bool needReset)
+            => BaseAdd<Char>('-', (s) => Byte.GetValue(s), self, comp, args, needReset);
 
         public static char GetValue(string value)
         {

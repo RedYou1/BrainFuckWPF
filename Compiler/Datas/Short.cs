@@ -4,45 +4,26 @@ using System.Linq;
 using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
+using static Compiler.Compiler;
 
 namespace Compiler
 {
     public class Short : ValueType
     {
+
         public Short(short address, short size) : base(address, Types[nameof(Short)].size)
         {
+            BuildInFunction.Add(BuildInFunctions.Add, Add);
+            BuildInFunction.Add(BuildInFunctions.Sub, Sub);
         }
 
         public static Short Constructor(short address) => new Short(address, Types[nameof(Short)].size);
 
-        public override void Add(Compiler comp, CodeWriter codeWriter, string stringValue, bool needReset)
-        {
-            if (comp.Memory.ContainName(stringValue))
-            {
-                Data from = comp.Memory[stringValue];
-                if (from.Size != Types[nameof(Short)].size)
-                    throw new Exception("Short add not same size");
+        public static ReturnCode Add(Data self, Compiler comp, string[] args, bool needReset)
+            => BaseAdd<Short>('+', (s) => GetValue(s), self, comp, args, needReset);
 
-                comp.CopyData(codeWriter, from, this, false, needReset);
-            }
-            else
-            {
-                comp.Move(codeWriter, (short)(Address + 1));
-                short value = GetValue(stringValue);
-                codeWriter.Write(
-                    new StringBuilder("+[<+>]".Length * value).Insert(0, "+[<+>]", value).ToString()
-                    , $"adding {value}");
-            }
-        }
-
-        public override void Sub(Compiler comp, CodeWriter codeWriter, string stringValue)
-        {
-            comp.Move(codeWriter, (short)(Address + 1));
-            short value = GetValue(stringValue);
-            codeWriter.Write(
-               new StringBuilder("-[<->]".Length * value).Insert(0, "-[<->]", value).ToString()
-               , $"substracting {value}");
-        }
+        public static ReturnCode Sub(Data self, Compiler comp, string[] args, bool needReset)
+            => BaseAdd<Short>('-', (s) => GetValue(s), self, comp, args, needReset);
 
         public static short GetValue(string value)
         {

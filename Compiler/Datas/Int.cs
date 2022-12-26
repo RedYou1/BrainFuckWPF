@@ -4,45 +4,26 @@ using System.Linq;
 using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
+using static Compiler.Compiler;
 
 namespace Compiler
 {
     public class Int : ValueType
     {
+
         public Int(short address, short size) : base(address, Types[nameof(Int)].size)
         {
+            BuildInFunction.Add(BuildInFunctions.Add, Add);
+            BuildInFunction.Add(BuildInFunctions.Sub, Sub);
         }
 
         public static Int Constructor(short address) => new Int(address, Types[nameof(Int)].size);
 
-        public override void Add(Compiler comp, CodeWriter codeWriter, string stringValue, bool needReset)
-        {
-            if (comp.Memory.ContainName(stringValue))
-            {
-                Data from = comp.Memory[stringValue];
-                if (from.Size != Types[nameof(Int)].size)
-                    throw new Exception("Int add not same size");
+        public static ReturnCode Add(Data self, Compiler comp, string[] args, bool needReset)
+            => BaseAdd<Int>('+', (s) => GetValue(s), self, comp, args, needReset);
 
-                comp.CopyData(codeWriter, from, this, false, needReset);
-            }
-            else
-            {
-                comp.Move(codeWriter, (short)(Address + 3));
-                int value = GetValue(stringValue);
-                codeWriter.Write(
-                    new StringBuilder("+[<+[<+[<+>]>]>]".Length * value).Insert(0, "+[<+[<+[<+>]>]>]", value).ToString()
-                    , $"adding {value}");
-            }
-        }
-
-        public override void Sub(Compiler comp, CodeWriter codeWriter, string stringValue)
-        {
-            comp.Move(codeWriter, (short)(Address + 3));
-            int value = GetValue(stringValue);
-            codeWriter.Write(
-               new StringBuilder("-[<-[<-[<->]>]>]".Length * value).Insert(0, "-[<-[<-[<->]>]>]", value).ToString()
-               , $"substracting {value}");
-        }
+        public static ReturnCode Sub(Data self, Compiler comp, string[] args, bool needReset)
+            => BaseAdd<Int>('-', (s) => GetValue(s), self, comp, args, needReset);
 
         public static int GetValue(string value)
         {
