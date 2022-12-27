@@ -136,7 +136,7 @@ namespace IDE
             var r = Compile();
             if (r is not null)
                 return r;
-            playScreen.Content = new BrainFuck.Interpreter(Compiler.Compiler.Debug, true, Path + "/build.bf");
+            playScreen.Content = new BrainFuckPlayer(Compiler.Compiler.Debug, true, Path + "/build.bf");
             playScreen.IsSelected = true;
             btnStop.IsEnabled = true;
             return r;

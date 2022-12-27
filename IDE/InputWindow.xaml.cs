@@ -2,7 +2,7 @@
 using System.Windows;
 using System.Windows.Controls;
 
-namespace BrainFuck
+namespace IDE
 {
     /// <summary>
     /// Logique d'interaction pour InputWindow.xaml

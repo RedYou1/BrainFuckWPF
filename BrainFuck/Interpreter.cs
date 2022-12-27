@@ -6,84 +6,40 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Media;
 
 namespace BrainFuck
 {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
-    public partial class Interpreter : Grid
+    public class Interpreter
     {
         private Action<Interpreter>[] actions;
-        private TextBlock[] values = new TextBlock[9];
-        private bool debug;
-        private bool autoplay;
+        public BrainFuckBack BrainFuckBack { get; } = new();
 
-        public Interpreter(bool debug, bool autoplay, string filePath)
+        public int CurrentActionsPtr { get; private set; }
+        public int CurrentActionsLength { get; private set; }
+
+        public Action<char> PrintChar { get; set; }
+        public Func<int, byte[]> Input { get; set; }
+
+        public Interpreter(string filePath, Action<char> printChar, Func<int, byte[]> input)
         {
-            this.debug = debug;
-            this.autoplay = autoplay;
-            InitializeComponent();
-
-            for (int i = 0; i < values.Length; i++)
-            {
-                values[i] = new TextBlock() { TextAlignment = TextAlignment.Center };
-                valuesPanel.Children.Add(values[i]);
-            }
-            refresh();
+            PrintChar = printChar;
+            Input = input;
 
             string file = File.ReadAllText(filePath);
 
             int ptr1 = 0;
             int ptr2 = 0;
             actions = parse(file, ref ptr1, ref ptr2);
-
-
-            BrainFuckBack.OnPtrChanged += refresh;
-            BrainFuckBack.OnValueChanged += refresh;
+            CurrentActionsLength = actions.Length;
+            CurrentActionsPtr = 0;
         }
 
-        private void refresh(object? sender = null, EventArgs? args = null)
+        public void Next()
         {
-            int offset = BrainFuckBack.Ptr - (int)Math.Floor(values.Length / 2f);
-            for (int i = 0; i < values.Length; i++)
-            {
-                short ptr = (short)(offset + i);
-                if (ptr < 0)
-                    ptr += BrainFuckBack.RANGE;
-                if (ptr >= BrainFuckBack.RANGE)
-                    ptr -= BrainFuckBack.RANGE;
-                values[i].Text = $"ptr\n{ptr}\nvalue\n{BrainFuckBack[ptr]}";
-                values[i].Background = Brushes.White;
-            }
-            values[(int)Math.Floor(values.Length / 2f)].Background = Brushes.Yellow;
-        }
-
-        private static int amountInRow(string actionsFile, char command, ref int strPtr)
-        {
-            int result = 1;
-            while (actionsFile.Length > strPtr + 1)
-            {
-                char next = actionsFile[strPtr + 1];
-                if (next == '<' || next == '>' ||
-                    next == '+' || next == '-' ||
-                    next == '.' || next == ',' ||
-                    next == '[' || next == ']')
-                {
-                    if (next == command)
-                    {
-                        result++;
-                    }
-                    else
-                    {
-                        return result;
-                    }
-                }
-                strPtr++;
-            }
-            return result;
+            if (CurrentActionsPtr >= CurrentActionsLength)
+                throw new Exception("out of actions");
+            actions[CurrentActionsPtr].Invoke(this);
+            CurrentActionsPtr++;
         }
 
         private static Action<Interpreter>[] parse(string actionsFile, ref int strPtr, ref int actionPtr)
@@ -144,24 +100,14 @@ namespace BrainFuck
                         }
                     case '.':
                         actions.Add((mainWindow) =>
-                            mainWindow.output.Text += (char)mainWindow.BrainFuckBack[mainWindow.BrainFuckBack.Ptr]);
+                            mainWindow.PrintChar((char)mainWindow.BrainFuckBack[mainWindow.BrainFuckBack.Ptr]));
                         actionPtr++;
                         break;
                     case ',':
                         {
                             int amount = amountInRow(actionsFile, ',', ref strPtr);
                             actions.Add((mainWindow) =>
-                            {
-                                InputWindow inWin;
-                                do
-                                {
-                                    inWin = new InputWindow(amount);
-                                    inWin.ShowDialog();
-                                } while (!inWin.Finished);
-
-                                byte[] value = Encoding.ASCII.GetBytes(inWin.Text);
-                                mainWindow.BrainFuckBack.Set(value);
-                            });
+                            mainWindow.BrainFuckBack.Set(mainWindow.Input(amount)));
                             actionPtr++;
                             break;
                         }
@@ -190,40 +136,29 @@ namespace BrainFuck
             return actions.ToArray();
         }
 
-        public BrainFuckBack BrainFuckBack { get; } = new();
-
-        private void Window_Loaded(object sender, RoutedEventArgs e)
+        private static int amountInRow(string actionsFile, char command, ref int strPtr)
         {
-            CurrentActionsLength = actions.Length;
-            CurrentActionsPtr = 0;
-            if (autoplay)
+            int result = 1;
+            while (actionsFile.Length > strPtr + 1)
             {
-                Task.Run(() =>
+                char next = actionsFile[strPtr + 1];
+                if (next == '<' || next == '>' ||
+                    next == '+' || next == '-' ||
+                    next == '.' || next == ',' ||
+                    next == '[' || next == ']')
                 {
-                    for (; CurrentActionsPtr < CurrentActionsLength; CurrentActionsPtr++)
+                    if (next == command)
                     {
-                        Dispatcher.Invoke(() =>
-                            actions[CurrentActionsPtr].Invoke(this));
-                        Thread.Sleep(debug ? 10 : 0);
+                        result++;
                     }
-                    Dispatcher.Invoke(() =>
-                        Ended?.Invoke(this, new()));
-                });
+                    else
+                    {
+                        return result;
+                    }
+                }
+                strPtr++;
             }
+            return result;
         }
-
-        public void Next()
-        {
-            actions[CurrentActionsPtr].Invoke(this);
-            if (CurrentActionsPtr < CurrentActionsLength)
-            {
-                Ended?.Invoke(this, new());
-            }
-        }
-
-        public event EventHandler Ended;
-
-        public int CurrentActionsPtr { get; set; }
-        public int CurrentActionsLength { get; set; }
     }
 }
