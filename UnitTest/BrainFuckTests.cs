@@ -100,5 +100,59 @@ namespace UnitTest
             while (interpreter.CurrentActionsPtr < interpreter.CurrentActionsLength)
                 interpreter.Next();
         }
+
+        class Person
+        {
+            public byte Age { get; private set; }
+            public bool IsAlive { get; private set; }
+            public byte Age2 => IsAlive ? (byte)(Age + 100) : Age;
+
+            public Person(Random random)
+            {
+                Age = (byte)random.Next(0, byte.MaxValue);
+                IsAlive = random.Next(0, 3) != 0 ? true : false; // 66%
+            }
+        }
+
+        [TestMethod]
+        public void ManipulateArray()
+        {
+            CompileError? result = Compile(nameof(ManipulateArray));
+            Assert.IsNull(result);
+
+            Random random = new Random(420);
+            List<byte> Result = new();
+            Person[] persons = new Person[100].Select(x => new Person(random)).ToArray();
+
+            int i = 0;
+
+            Interpreter interpreter = CreateInterpreter(nameof(ManipulateArray),
+                (output) => Result.Add((byte)output),
+                (amount) =>
+                {
+                    if (i < persons.Length)
+                    {
+                        byte[] r = new byte[2] { persons[i].Age, (byte)(persons[i].IsAlive ? 1 : 0) };
+                        i++;
+                        return r;
+                    }
+                    if (i == persons.Length)
+                    {
+                        i++;
+                        return new byte[1] { 100 };
+                    }
+                    Assert.Fail();
+                    return new byte[0];
+                });
+
+            while (interpreter.CurrentActionsPtr < interpreter.CurrentActionsLength)
+                interpreter.Next();
+
+            Assert.AreEqual(persons.Length, Result.Count());
+            for (int i2 = 0; i2 < persons.Length; i2++)
+            {
+                Assert.AreEqual(persons[i2].Age2, Result[i2]);
+            }
+        }
     }
 }

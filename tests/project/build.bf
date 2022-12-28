@@ -84,8 +84,10 @@
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ //adding 66
 [ //check 16
 - //adding 1
-> //move to 17
+[->+<] //Add between 16 and 17
 ] //end of 16
+> //move to 17
+[-<+>] //Add between 17 and 16
 < //move to 16
 . //print
 >> //move to 18
@@ -107,8 +109,11 @@
 . //print
 > //move to 22
 . //print
-> //move to 23
+<<<< //move to 18
+[->>>>>+<<<<<] //Add between 18 and 23
 ] //end of 18
+>>>>> //move to 23
+[-<<<<<+>>>>>] //Add between 23 and 18
 > //move to 24
 +++++++++++++++ //adding 15
 > //move to 25

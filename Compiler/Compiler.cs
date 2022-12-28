@@ -343,9 +343,18 @@ namespace Compiler
 
                         if (args.Length == 2)
                         {
-                            Char v = Memory.Add<Char>(this, CodeWriter!, args[1]);
-                            Move(CodeWriter!, v.Address);
-                            CodeWriter!.Write(",", "input");
+                            if (Memory.ContainName(args[1]))
+                            {
+                                Data d = Memory[args[1]];
+                                Move(CodeWriter!, d.Address);
+                                CodeWriter!.Write(new string(',', d.Size), $"input for variable {args[1]}");
+                            }
+                            else
+                            {
+                                Char v = Memory.Add<Char>(this, CodeWriter!, args[1]);
+                                Move(CodeWriter!, v.Address);
+                                CodeWriter!.Write(",", "input");
+                            }
                         }
                         else if (short.TryParse(args[2], out short amount))
                         {
@@ -421,9 +430,9 @@ namespace Compiler
                         NeedCodeWriter();
                         CompileError.MinLength(args.Length, 3, "structure: if {name}\n{\n}");
 
-                        short address = Memory[args[1]].Address;
-                        Move(CodeWriter!, address);
-                        CodeWriter!.Write("[", $"check {address}");
+                        var d = Memory[args[1]];
+                        Move(CodeWriter!, d.Address);
+                        CodeWriter!.Write("[", $"check {d.Address}");
                         Memory.PushStack();
 
                         try
@@ -435,11 +444,12 @@ namespace Compiler
                             e.AddMessage($"if {args[1]}");
                             throw e;
                         }
-
-                        Byte v = Memory.Add<Byte>(this, CodeWriter, " if ");
-                        Move(CodeWriter, v.Address);
+                        Data d2 = Memory.Add(CodeWriter, " if ", d.Size, (address) => new Data(address, d.Size));
+                        MoveData(CodeWriter!, d, d2, false);
+                        Move(CodeWriter, d.Address);
+                        CodeWriter.Write("]", $"end of {d.Address}");
+                        MoveData(CodeWriter!, d2, d, false);
                         Memory.PopStack(CodeWriter, needReset);
-                        CodeWriter.Write("]", $"end of {address}");
                         break;
                     }
                 case "struct":
