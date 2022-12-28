@@ -77,6 +77,50 @@ namespace BrainFuck
                     continue;
                 }
 
+                if (strAt.Length >= 6 &&
+                    Regex.Match(strAt, "^\\[(\\+|\\-)+(<|>)+(\\+|\\-)+(<|>)+\\]").Success)
+                {
+                    int temp = strPtr + 1;
+                    char dir1 = strAt[1];
+                    byte amount1 = (byte)(amountInRow(actionsFile, dir1, ref temp) % byte.MaxValue);
+                    temp++;
+                    char dir2 = strAt[temp - strPtr];
+                    short move1 = (short)(amountInRow(actionsFile, dir2, ref temp) % BrainFuckBack.RANGE);
+                    temp++;
+                    char dir3 = strAt[temp - strPtr];
+                    byte amount2 = (byte)(amountInRow(actionsFile, dir3, ref temp) % byte.MaxValue);
+                    temp++;
+                    char dir4 = strAt[temp - strPtr];
+                    short move2 = (short)(amountInRow(actionsFile, dir4, ref temp) % BrainFuckBack.RANGE);
+                    temp++;
+                    if (dir1 != dir3 && dir2 != dir4 && amount1 == amount2 && move1 == move2)
+                    {
+                        strPtr = temp;
+                        actionPtr++;
+                        actions.Add((mainWindow) =>
+                        {
+                            byte amount = (byte)((amount1 * mainWindow.BrainFuckBack[mainWindow.BrainFuckBack.Ptr]) % byte.MaxValue);
+                            mainWindow.BrainFuckBack.Set(0);
+
+                            if (dir2 == '>')
+                                mainWindow.BrainFuckBack.Next(move1);
+                            else
+                                mainWindow.BrainFuckBack.Prev(move1);
+
+                            if (dir3 == '+')
+                                mainWindow.BrainFuckBack.Add(amount);
+                            else
+                                mainWindow.BrainFuckBack.Sub(amount);
+
+                            if (dir2 == '>')
+                                mainWindow.BrainFuckBack.Prev(move1);
+                            else
+                                mainWindow.BrainFuckBack.Next(move1);
+                        });
+                        continue;
+                    }
+                }
+
                 switch (actionsFile[strPtr])
                 {
                     case '>':
