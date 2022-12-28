@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -17,8 +18,8 @@ namespace BrainFuck
         public int CurrentActionsPtr { get; private set; }
         public int CurrentActionsLength { get; private set; }
 
-        public Action<char> PrintChar { get; set; }
-        public Func<int, byte[]> Input { get; set; }
+        public Action<char> PrintChar { get; }
+        public Func<int, byte[]> Input { get; }
 
         public Interpreter(string filePath, Action<char> printChar, Func<int, byte[]> input)
         {
@@ -56,6 +57,22 @@ namespace BrainFuck
                     actionPtr++;
                     actions.Add((mainWindow) =>
                         mainWindow.BrainFuckBack.Set(0));
+                    strPtr += 2;
+                    continue;
+                }
+
+                if (strAt.Length >= 3 &&
+                    strAt[0] == '[' &&
+                    strAt[1] == '.' &&
+                    strAt[2] == ']')
+                {
+                    actionPtr++;
+                    actions.Add((mainWindow) =>
+                    {
+                        char current = (char)mainWindow.BrainFuckBack[mainWindow.BrainFuckBack.Ptr];
+                        if (current != 0)
+                            mainWindow.PrintChar(current);
+                    });
                     strPtr += 2;
                     continue;
                 }
@@ -113,7 +130,7 @@ namespace BrainFuck
                         }
                     case '[':
                         strPtr++;
-                        int start = actionPtr - 1;
+                        int start = actionPtr;
                         actionPtr++;
                         Action<Interpreter>[] innerActions = parse(actionsFile, ref strPtr, ref actionPtr);
                         int end = actionPtr;
@@ -125,7 +142,8 @@ namespace BrainFuck
                         actions.AddRange(innerActions);
                         actions.Add((mainWindow) =>
                         {
-                            mainWindow.CurrentActionsPtr = start;
+                            if (mainWindow.BrainFuckBack[mainWindow.BrainFuckBack.Ptr] != 0)
+                                mainWindow.CurrentActionsPtr = start;
                         });
                         actionPtr++;
                         break;

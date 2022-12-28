@@ -37,7 +37,7 @@ namespace Compiler
                 for (int i = 1; i < names.Length; i++)
                 {
                     if (output is not Container container)
-                        throw new Exception($"not a container {i}");
+                        throw new CompileError(CompileError.ReturnCodeEnum.BadArgs, "Memory name dont exists");
                     if (!container.ContainsKey(names[i]))
                         return false;
                     output = container[names[i], this];

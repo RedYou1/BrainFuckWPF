@@ -24,6 +24,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BrainFuck", "BrainFuck\BrainFuck.csproj", "{24C6E03D-5070-4E66-A085-5598D5B2D52F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTest", "UnitTest\UnitTest.csproj", "{C56E4563-3F1B-4EA1-BC01-0FDD1678EBF8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -42,6 +44,10 @@ Global
 		{24C6E03D-5070-4E66-A085-5598D5B2D52F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{24C6E03D-5070-4E66-A085-5598D5B2D52F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{24C6E03D-5070-4E66-A085-5598D5B2D52F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C56E4563-3F1B-4EA1-BC01-0FDD1678EBF8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C56E4563-3F1B-4EA1-BC01-0FDD1678EBF8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C56E4563-3F1B-4EA1-BC01-0FDD1678EBF8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C56E4563-3F1B-4EA1-BC01-0FDD1678EBF8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

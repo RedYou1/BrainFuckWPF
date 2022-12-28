@@ -20,9 +20,41 @@ namespace Compiler
             Address = address;
             Size = size;
             AddressArray = Enumerable.Range(Address, Size).Select(x => (short)x).ToArray();
+            BuildInFunction.Add(BuildInFunctions.Print, Print);
+            BuildInFunction.Add(BuildInFunctions.Move, Move);
         }
 
         public readonly short[] AddressArray;
+
+        public static void Print(Data data, Compiler comp, string[] args, bool needReset)
+        {
+            comp.NeedCodeWriter();
+            CompileError.MinLength(args.Length, 2, "Need something to print");
+
+            foreach (string arg in args.Skip(1))
+            {
+                Data v = comp.Memory[arg];
+                for (short i = v.Address; i < v.Address + v.Size; i++)
+                {
+                    comp.Move(comp.CodeWriter!, i);
+                    comp.CodeWriter!.Write(".", "print");
+                }
+            }
+        }
+
+        public static void Move(Data data, Compiler comp, string[] args, bool needReset)
+        {
+            comp.NeedCodeWriter();
+            CompileError.MinLength(args.Length, 3, "move {to} {from}");
+
+            Data from = comp.Memory[args[2]];
+            Data to = comp.Memory[args[1]];
+
+            if (from.Size != to.Size)
+                throw new CompileError(CompileError.ReturnCodeEnum.BadArgs, $"move {args[1]} {args[2]} not same size");
+
+            comp.MoveData(comp.CodeWriter!, from, to, false);
+        }
 
         public static void DefaultInit<T>(Compiler comp, string[] args, bool needReset)
             where T : ValueType
@@ -33,7 +65,7 @@ namespace Compiler
             T v = comp.Memory.Add<T>(comp, comp.CodeWriter!, args[1]);
             if (args.Length >= 3)
             {
-                v.BuildInFunction[ValueType.BuildInFunctions.Add](v, comp, new string[] { "", "", args[2] }, needReset);
+                v.BuildInFunction[BuildInFunctions.Add](v, comp, new string[] { "", "", args[2] }, needReset);
             }
         }
 
@@ -53,7 +85,7 @@ namespace Compiler
                     ValueType v = t.constructor((short)(s.Address + i));
                     try
                     {
-                        v.BuildInFunction[ValueType.BuildInFunctions.Add](v, comp, new string[] { "", "", args[4 + i] }, needReset);
+                        v.BuildInFunction[BuildInFunctions.Add](v, comp, new string[] { "", "", args[4 + i] }, needReset);
                     }
                     catch (CompileError e)
                     {
@@ -106,7 +138,7 @@ namespace Compiler
             {
                 try
                 {
-                    v.Datas[i].data.BuildInFunction[ValueType.BuildInFunctions.Set]
+                    v.Datas[i].data.BuildInFunction[BuildInFunctions.Set]
                     (v.Datas[i].data, comp, new string[] { "", "", args[2 + i] }, needReset);
                 }
                 catch (CompileError e)

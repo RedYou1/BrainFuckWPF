@@ -21,18 +21,16 @@ namespace Compiler
             if (comp == null)
                 comp = new Compiler(sourcePath, null);
 
-            if (!File.Exists(startingFile + ".b"))
+            if (File.Exists(startingFile + ".b"))
             {
-                return new CompileError(CompileError.ReturnCodeEnum.SourceDontExists, "The sourcePath + .b doesn't exists.");
-            }
-
-            try
-            {
-                Compile(getFileCommands(File.ReadAllText(startingFile + ".b")), comp, false);
-            }
-            catch (CompileError e)
-            {
-                return e;
+                try
+                {
+                    Compile(getFileCommands(File.ReadAllText(startingFile + ".b")), comp, false);
+                }
+                catch (CompileError e)
+                {
+                    return e;
+                }
             }
 
             if (File.Exists(startingFile + ".f"))
@@ -294,7 +292,7 @@ namespace Compiler
             if (from.Address == to.Address)
                 return;
             if (from.Size != to.Size)
-                throw new Exception("MoveData dont have the same size");
+                throw new CompileError(CompileError.ReturnCodeEnum.BadArgs, "MoveData dont have the same size");
 
             for (int i = 0; i < from.Size; i++)
             {
@@ -338,22 +336,6 @@ namespace Compiler
                     NeedCodeWriter();
                     CodeWriter!.Write("", string.Join(' ', args.Skip(1).ToArray()));
                     break;
-                case "print":
-                    {
-                        NeedCodeWriter();
-                        CompileError.MinLength(args.Length, 2, "Need something to print");
-
-                        foreach (string arg in args.Skip(1))
-                        {
-                            Data v = Memory[arg];
-                            for (short i = v.Address; i < v.Address + v.Size; i++)
-                            {
-                                Move(CodeWriter!, i);
-                                CodeWriter!.Write(".", "print");
-                            }
-                        }
-                        break;
-                    }
                 case "input":
                     {
                         NeedCodeWriter();
@@ -430,7 +412,7 @@ namespace Compiler
                                 e.AddMessage($"foreach {args[1]} {args[2]}");
                                 throw e;
                             }
-                            Memory.PopStack(CodeWriter!, true);
+                            Memory.PopStack(CodeWriter!, i + 1 == arr.Amount ? needReset : true);
                         }
                         break;
                     }

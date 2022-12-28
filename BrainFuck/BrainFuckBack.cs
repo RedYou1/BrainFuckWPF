@@ -25,9 +25,9 @@ namespace BrainFuck
 
         public void Prev(short amount = 1)
         {
-            if (Ptr <= 0)
-                Ptr += RANGE;
             Ptr -= amount;
+            if (Ptr < 0)
+                Ptr += RANGE;
             OnPtrChanged?.Invoke(this, new());
         }
 

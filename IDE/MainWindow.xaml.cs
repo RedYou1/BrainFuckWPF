@@ -31,6 +31,7 @@ namespace IDE
 
         public MainWindow()
         {
+            path = "";
             InitializeComponent();
             if (Properties.Settings.Default.Path == "" || !Directory.Exists(Properties.Settings.Default.Path))
             {
@@ -60,6 +61,14 @@ namespace IDE
                     {
                         Path = Directory.GetParent(openFileDialog.FileName)!.FullName;
                         bFProj = BFProj.Parse(Path + "/BFProj.json")!;
+
+                        if (bFProj.CurrentFile is not null)
+                        {
+                            changingText = true;
+                            txtEditor.Text = bFProj.Files[bFProj.CurrentFile].text;
+                            changingText = false;
+                        }
+                        UpdateActiveFiles();
                         return;
                     }
                 }

@@ -13,12 +13,29 @@ namespace Compiler
         public String(short address, short elementSize, short amount)
             : base(address, elementSize, amount, Char.Constructor)
         {
-            BuildInFunction.Add(ValueType.BuildInFunctions.Set, Set);
+            BuildInFunction.Add(BuildInFunctions.PrintString, PrintString);
+            BuildInFunction.Add(BuildInFunctions.Set, Set);
         }
 
         public static Func<short, String> ConstructorOf(short amount)
             => (address) => new String(address, Char.BytesSize, amount);
 
+
+        public static void PrintString(Data data, Compiler comp, string[] args, bool needReset)
+        {
+            comp.NeedCodeWriter();
+            CompileError.MinLength(args.Length, 2, "Need something to print");
+
+            foreach (string arg in args.Skip(1))
+            {
+                Data v = comp.Memory[arg];
+                for (short i = v.Address; i < v.Address + v.Size; i++)
+                {
+                    comp.Move(comp.CodeWriter!, i);
+                    comp.CodeWriter!.Write("[.]", "prints");
+                }
+            }
+        }
 
         public void Set(Data data, Compiler comp, string[] args, bool needReset)
         {

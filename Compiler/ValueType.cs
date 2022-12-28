@@ -12,13 +12,6 @@ namespace Compiler
 {
     public class ValueType : Data
     {
-        public class BuildInFunctions
-        {
-            public const string Set = "set";
-            public const string Add = "add";
-            public const string Sub = "sub";
-        }
-
         public ValueType(short address, short size) : base(address, size)
         {
             BuildInFunction.Add(BuildInFunctions.Set, Set);
