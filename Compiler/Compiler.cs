@@ -375,6 +375,22 @@ namespace Compiler
                         }
                         break;
                     }
+                case "unsafe":
+                    {
+                        NeedCodeWriter();
+                        CompileError.MinLength(args.Length, 3, "structure: unsafe {name or ptr}\n{\n}");
+
+                        short address;
+                        if (Memory.ContainName(args[1]))
+                            address = Memory[args[1]].Address;
+                        else if (!short.TryParse(args[1], out address))
+                            throw new CompileError(CompileError.ReturnCodeEnum.BadArgs, "structure: unsafe {name or ptr}\n{\n}");
+
+                        Move(CodeWriter!, address);
+                        CodeWriter!.Write(string.Join("", args[2].Skip(1)),
+                            $"unsafe {address}");
+                        break;
+                    }
                 case "while":
                     {
                         NeedCodeWriter();

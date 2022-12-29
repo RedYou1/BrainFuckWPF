@@ -40,13 +40,12 @@ namespace UnitTest
 
             int numberIndex = 0;
             int byteIndex = 0;
-            byte[] bytes;
-            {
-                List<byte> bytesList = new List<byte>() { (byte)numbers[0] };
-                bytesList.AddRange(BitConverter.GetBytes((short)numbers[1]));
-                bytesList.AddRange(BitConverter.GetBytes((int)numbers[2]));
-                bytes = bytesList.ToArray();
-            }
+            byte[] bytes = new byte[]
+            {   1,
+                2, 2,
+                4, 4, 4, 4,
+                5,
+                4, 5, 4, 4 };
 
             Interpreter interpreter = CreateInterpreter(nameof(Numbers),
                 (output) =>
@@ -64,7 +63,6 @@ namespace UnitTest
                 interpreter.Next();
 
             Assert.AreEqual(bytes.Length, byteIndex);
-            Assert.AreEqual(bytes.Length, numberIndex);
         }
 
         [TestMethod]
