@@ -27,15 +27,23 @@ namespace IDE
 
         private TextBlock[] values = new TextBlock[9];
 
-        private bool debug;
-        private bool autoplay;
+        private string FilePath;
 
-        public BrainFuckPlayer(bool debug, bool autoplay, string filePath)
+        private bool debug;
+
+        public CancellationTokenSource cancellationToken = new();
+
+        public int waitingTime;
+
+        public BrainFuckPlayer(bool debug, string filePath)
         {
             this.debug = debug;
-            this.autoplay = autoplay;
+            FilePath = filePath;
+            waitingTime = debug ? 10 : 0;
 
             InitializeComponent();
+
+            update(false);
 
             for (int i = 0; i < values.Length; i++)
             {
@@ -43,7 +51,7 @@ namespace IDE
                 valuesPanel.Children.Add(values[i]);
             }
 
-            Interpreter = new Interpreter(filePath, addChar, input);
+            Interpreter = new Interpreter(FilePath, addChar, input);
 
             refresh();
 
@@ -83,19 +91,53 @@ namespace IDE
             values[(int)Math.Floor(values.Length / 2f)].Background = Brushes.Yellow;
         }
 
-        private void Window_Loaded(object sender, RoutedEventArgs e)
+
+        private void update(bool playing)
         {
-            if (autoplay)
+            btnPlay.IsEnabled = !playing;
+            btnResume.IsEnabled = !playing;
+            btnNext.IsEnabled = !playing;
+            btnStop.IsEnabled = playing;
+        }
+
+        public bool IsPlaying => !cancellationToken.IsCancellationRequested && Interpreter.CurrentActionsPtr < Interpreter.CurrentActionsLength;
+
+        public void Play(object? sender = null, RoutedEventArgs? args = null)
+        {
+            Interpreter = new Interpreter(FilePath, addChar, input);
+            output.Text = "";
+
+            refresh();
+
+            Interpreter.BrainFuckBack.OnPtrChanged += refresh;
+            Interpreter.BrainFuckBack.OnValueChanged += refresh;
+            Resume();
+        }
+
+        public void Resume(object? sender = null, RoutedEventArgs? args = null)
+        {
+            cancellationToken = new();
+            Task.Run(() =>
             {
-                Task.Run(() =>
+                while (IsPlaying)
                 {
-                    while (Interpreter.CurrentActionsPtr < Interpreter.CurrentActionsLength)
-                    {
-                        Dispatcher.Invoke(() => Interpreter.Next());
-                        Thread.Sleep(debug ? 10 : 0);
-                    }
-                });
-            }
+                    Dispatcher.Invoke(() => Interpreter.Next());
+                    Thread.Sleep(waitingTime);
+                }
+            });
+            update(true);
+        }
+
+        public void Stop(object? sender = null, RoutedEventArgs? args = null)
+        {
+            cancellationToken.Cancel();
+            update(false);
+        }
+
+        public void Next(object? sender = null, RoutedEventArgs? args = null)
+        {
+            if (Interpreter.CurrentActionsPtr < Interpreter.CurrentActionsLength)
+                Interpreter.Next();
         }
     }
 }
