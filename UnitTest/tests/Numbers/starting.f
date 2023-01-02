@@ -10,3 +10,8 @@ unsafe c
     >+.<
 }
 print c;
+
+add c 33554431;
+print c;
+sub c 33554431;
+print c;

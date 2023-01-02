@@ -6,6 +6,7 @@
         public const string PrintString = "prints";
         public const string Move = "move";
 
+        public const string Init = "init";
         public const string Set = "set";
         public const string Add = "add";
         public const string Sub = "sub";

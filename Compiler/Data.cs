@@ -65,7 +65,7 @@ namespace Compiler
             T v = comp.Memory.Add<T>(comp, comp.CodeWriter!, args[1]);
             if (args.Length >= 3)
             {
-                v.BuildInFunction[BuildInFunctions.Add](v, comp, new string[] { "", "", args[2] }, needReset);
+                v.BuildInFunction[BuildInFunctions.Init](v, comp, new string[] { "", "", args[2] }, needReset);
             }
         }
 

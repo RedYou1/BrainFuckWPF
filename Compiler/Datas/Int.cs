@@ -13,17 +13,21 @@ namespace Compiler
         public const short BytesSize = 4;
         public Int(short address, short size) : base(address, BytesSize)
         {
+            BuildInFunction.Add(BuildInFunctions.Init, Init);
             BuildInFunction.Add(BuildInFunctions.Add, Add);
             BuildInFunction.Add(BuildInFunctions.Sub, Sub);
         }
 
         public static Int Constructor(short address) => new Int(address, BytesSize);
 
+        public static void Init(Data self, Compiler comp, string[] args, bool needReset)
+            => BaseInit<Int>((s) => BitConverter.GetBytes(GetValue(s)), self, comp, args, needReset);
+
         public static void Add(Data self, Compiler comp, string[] args, bool needReset)
-            => BaseAdd<Int>('+', (s) => GetValue(s), self, comp, args, needReset);
+            => BaseAdd<Int>((s) => BitConverter.GetBytes(GetValue(s)), self, comp, args, needReset);
 
         public static void Sub(Data self, Compiler comp, string[] args, bool needReset)
-            => BaseAdd<Int>('-', (s) => GetValue(s), self, comp, args, needReset);
+            => BaseSub<Int>((s) => BitConverter.GetBytes(GetValue(s)), self, comp, args, needReset);
 
         public static int GetValue(string value)
         {

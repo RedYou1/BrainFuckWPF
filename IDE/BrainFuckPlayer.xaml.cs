@@ -23,7 +23,7 @@ namespace IDE
     /// </summary>
     public partial class BrainFuckPlayer : Grid
     {
-        private Interpreter Interpreter;
+        private Interpreter? Interpreter;
 
         private TextBlock[] values = new TextBlock[9];
 
@@ -33,13 +33,12 @@ namespace IDE
 
         public CancellationTokenSource cancellationToken = new();
 
-        public int waitingTime;
+        public int waitingTime = 10;
 
         public BrainFuckPlayer(bool debug, string filePath)
         {
             this.debug = debug;
             FilePath = filePath;
-            waitingTime = debug ? 10 : 0;
 
             InitializeComponent();
 
@@ -47,17 +46,9 @@ namespace IDE
 
             for (int i = 0; i < values.Length; i++)
             {
-                values[i] = new TextBlock() { TextAlignment = TextAlignment.Center };
+                values[i] = new TextBlock() { TextAlignment = TextAlignment.Center, Text = $"ptr\n{i - values.Length / 2}\nvalue\n0" };
                 valuesPanel.Children.Add(values[i]);
             }
-
-            Interpreter = new Interpreter(FilePath, addChar, input);
-
-            refresh();
-
-
-            Interpreter.BrainFuckBack.OnPtrChanged += refresh;
-            Interpreter.BrainFuckBack.OnValueChanged += refresh;
         }
 
         private void addChar(char output)
@@ -77,7 +68,7 @@ namespace IDE
 
         private void refresh(object? sender = null, EventArgs? args = null)
         {
-            int offset = Interpreter.BrainFuckBack.Ptr - (int)Math.Floor(values.Length / 2f);
+            int offset = Interpreter!.BrainFuckBack.Ptr - (int)Math.Floor(values.Length / 2f);
             for (int i = 0; i < values.Length; i++)
             {
                 short ptr = (short)(offset + i);
@@ -116,12 +107,14 @@ namespace IDE
 
         public void Resume(object? sender = null, RoutedEventArgs? args = null)
         {
+            if (Interpreter is null)
+                Play();
             cancellationToken = new();
             Task.Run(() =>
             {
                 while (IsPlaying)
                 {
-                    Dispatcher.Invoke(() => Interpreter.Next());
+                    Dispatcher.Invoke(() => Interpreter!.Next());
                     Thread.Sleep(waitingTime);
                 }
             });
@@ -136,7 +129,7 @@ namespace IDE
 
         public void Next(object? sender = null, RoutedEventArgs? args = null)
         {
-            if (Interpreter.CurrentActionsPtr < Interpreter.CurrentActionsLength)
+            if (Interpreter!.CurrentActionsPtr < Interpreter!.CurrentActionsLength)
                 Interpreter.Next();
         }
     }

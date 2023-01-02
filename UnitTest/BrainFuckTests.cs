@@ -31,21 +31,17 @@ namespace UnitTest
             CompileError? result = Compile(nameof(Numbers));
             Assert.IsNull(result);
 
-            dynamic[] numbers = new dynamic[]
-            {
-                (byte)0x01,
-                (short)0x0202,
-                0x04040404,
-            };
-
             int numberIndex = 0;
             int byteIndex = 0;
             byte[] bytes = new byte[]
             {   1,
                 2, 2,
                 4, 4, 4, 4,
+
                 5,
-                4, 5, 4, 4 };
+                4, 5, 4, 4,
+                6, 5, 4, 3,
+                4, 5, 4, 4};
 
             Interpreter interpreter = CreateInterpreter(nameof(Numbers),
                 (output) =>

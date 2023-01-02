@@ -12,6 +12,8 @@ namespace BrainFuck
 {
     public class Interpreter
     {
+        private static readonly char[] Actions = new char[] { '>', '<', '+', '-', '[', ']', ',', '.' };
+
         private Action<Interpreter>[] actions;
         public BrainFuckBack BrainFuckBack { get; } = new();
 
@@ -26,7 +28,7 @@ namespace BrainFuck
             PrintChar = printChar;
             Input = input;
 
-            string file = File.ReadAllText(filePath);
+            string file = string.Join("", File.ReadAllText(filePath).Where((c) => Actions.Contains(c)));
 
             int ptr1 = 0;
             int ptr2 = 0;
@@ -99,7 +101,7 @@ namespace BrainFuck
                         actionPtr++;
                         actions.Add((mainWindow) =>
                         {
-                            byte amount = (byte)((amount1 * mainWindow.BrainFuckBack[mainWindow.BrainFuckBack.Ptr]) % byte.MaxValue);
+                            byte amount = (byte)((amount1 * mainWindow.BrainFuckBack[mainWindow.BrainFuckBack.Ptr]) % (byte.MaxValue + 1));
                             mainWindow.BrainFuckBack.Set(0);
 
                             if (dir2 == '>')
@@ -204,10 +206,7 @@ namespace BrainFuck
             while (actionsFile.Length > strPtr + 1)
             {
                 char next = actionsFile[strPtr + 1];
-                if (next == '<' || next == '>' ||
-                    next == '+' || next == '-' ||
-                    next == '.' || next == ',' ||
-                    next == '[' || next == ']')
+                if (Actions.Contains(next))
                 {
                     if (next == command)
                     {

@@ -62,13 +62,15 @@ namespace IDE
                         Path = Directory.GetParent(openFileDialog.FileName)!.FullName;
                         bFProj = BFProj.Parse(Path + "/BFProj.json")!;
 
-                        if (bFProj.CurrentFile is not null)
-                        {
-                            changingText = true;
-                            txtEditor.Text = bFProj.Files[bFProj.CurrentFile].text;
-                            changingText = false;
-                        }
+                        UpdateFiles();
                         UpdateActiveFiles();
+
+                        changingText = true;
+                        if (bFProj.CurrentFile is null)
+                            txtEditor.Text = "";
+                        else
+                            txtEditor.Text = bFProj.Files[bFProj.CurrentFile].text;
+                        changingText = false;
                         return;
                     }
                 }
