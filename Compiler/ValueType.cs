@@ -19,12 +19,11 @@ namespace Compiler
 
         public static void Set(Data data, Compiler comp, string[] args, bool needReset)
         {
-            comp.NeedCodeWriter();
+            comp.IsMainFile();
 
             for (short i = data.Address; i < data.Address + data.Size; i++)
             {
-                comp.Move(comp.CodeWriter!, i);
-                comp.CodeWriter!.Write("[-]", "reset Set");
+                comp.CodeWriter!.Set(i, 0, "reset Set");
             }
             try
             {
@@ -40,16 +39,16 @@ namespace Compiler
         public static void BaseInit<T>(Func<string, byte[]> amount, Data data, Compiler comp, string[] args, bool needReset)
             where T : ValueType
         {
-            comp.NeedCodeWriter();
+            comp.IsMainFile();
             CompileError.MinLength(args.Length, 3, $"ValueType.BaseAdd min length");
 
-            if (comp.Memory.ContainName(args[2]))
+            if (comp.Memory!.ContainName(args[2]))
             {
-                Data from = comp.Memory[args[2]];
+                Data from = comp.Memory![args[2]];
                 if (from.Size != comp.ValueTypes[typeof(T).Name].size)
                     throw new CompileError(CompileError.ReturnCodeEnum.BadArgs, "ValueType.BaseAdd data size");
 
-                comp.CopyData(comp.CodeWriter!, from, data, false, needReset);
+                comp.CodeWriter!.CopyData(from, data, false, needReset);
             }
             else
             {
@@ -57,8 +56,7 @@ namespace Compiler
 
                 for (int i = 0; i < value.Length; i++)
                 {
-                    comp.Move(comp.CodeWriter!, (short)(data.Address + i));
-                    comp.CodeWriter!.Write(new string('+', value[i]), $"set {value[i]}");
+                    comp.CodeWriter!.Add((short)(data.Address + i), value[i], $"set {value[i]}");
                 }
             }
         }
@@ -67,52 +65,39 @@ namespace Compiler
         public static void BaseAdd<T>(Func<string, byte[]> amount, Data data, Compiler comp, string[] args, bool needReset)
             where T : ValueType
         {
-            comp.NeedCodeWriter();
+            comp.IsMainFile();
             CompileError.MinLength(args.Length, 3, $"ValueType.BaseAdd min length");
 
-            if (comp.Memory.ContainName(args[2]))
+            if (comp.Memory!.ContainName(args[2]))
             {
-                Data from = comp.Memory[args[2]];
+                Data from = comp.Memory![args[2]];
                 if (from.Size != comp.ValueTypes[typeof(T).Name].size)
                     throw new CompileError(CompileError.ReturnCodeEnum.BadArgs, "ValueType.BaseAdd data size");
 
-                comp.CopyData(comp.CodeWriter!, from, data, false, needReset);//TODO overflow
+                comp.CodeWriter!.CopyData(from, data, false, needReset);//TODO overflow
             }
             else
             {
-                comp.Memory.PushStack();
+                comp.Memory!.PushStack();
 
-                Bool overflow = comp.Memory.Add<Bool>(comp, comp.CodeWriter!, " overflow ");
-                Byte temp = comp.Memory.Add<Byte>(comp, comp.CodeWriter!, " temp ");
+                Bool overflow = comp.Memory!.Add<Bool>(" overflow ");
+                Byte temp = comp.Memory!.Add<Byte>(" temp ");
 
                 void Add(short address, int remainingRecursive)
                 {
-                    comp.Move(comp.CodeWriter!, address);
-                    comp.CodeWriter!.Write("+", "add 1");
+                    comp.CodeWriter!.Add(address, 1, "add 1");
 
                     if (remainingRecursive > 0)
                     {
-                        comp.Move(comp.CodeWriter!, overflow.Address);
-                        comp.CodeWriter!.Write("[-]+", "set to 1");
+                        comp.CodeWriter!.Set(overflow.Address, 1, "set to 1");
 
-                        comp.Move(comp.CodeWriter!, address);
-                        comp.CodeWriter!.Write("[", "does not overflow");
-                        comp.Move(comp.CodeWriter!, overflow.Address);
-                        comp.CodeWriter!.Write("-", "set to 0");
+                        comp.CodeWriter!.IfKeep(address,
+                            () => comp.CodeWriter!.Add(overflow.Address, -1, "set to 0"),
+                            "does not overflow", "end not overflow", temp.Address);
 
-                        comp.MoveData(comp.CodeWriter!, address, temp.Address, false);
-
-                        comp.Move(comp.CodeWriter!, address);
-                        comp.CodeWriter!.Write("]", "end not overflow");
-
-                        comp.MoveData(comp.CodeWriter!, temp.Address, address, false);
-
-                        comp.Move(comp.CodeWriter!, overflow.Address);
-                        comp.CodeWriter!.Write("[", "if overflow");
-                        comp.CodeWriter!.Write("-", "set to 0");
-                        Add((short)(address - 1), remainingRecursive - 1);
-                        comp.Move(comp.CodeWriter!, overflow.Address);
-                        comp.CodeWriter!.Write("]", "end overflow");
+                        comp.CodeWriter!.IfToZero(overflow.Address,
+                            () => Add((short)(address - 1), remainingRecursive - 1),
+                            "if overflow", "end overflow");
                     }
                 }
 
@@ -124,60 +109,47 @@ namespace Compiler
                         Add((short)(data.Address + data.Size - 1 - i), value.Length - 1 - i);
                 }
 
-                comp.Memory.PopStack(comp.CodeWriter!, needReset);
+                comp.Memory!.PopStack(needReset);
             }
         }
 
         public static void BaseSub<T>(Func<string, byte[]> amount, Data data, Compiler comp, string[] args, bool needReset)
             where T : ValueType
         {
-            comp.NeedCodeWriter();
+            comp.IsMainFile();
             CompileError.MinLength(args.Length, 3, $"ValueType.BaseSub min length");
 
-            if (comp.Memory.ContainName(args[2]))
+            if (comp.Memory!.ContainName(args[2]))
             {
-                Data from = comp.Memory[args[2]];
+                Data from = comp.Memory![args[2]];
                 if (from.Size != comp.ValueTypes[typeof(T).Name].size)
                     throw new CompileError(CompileError.ReturnCodeEnum.BadArgs, "ValueType.BaseSub data size");
 
-                comp.CopyData(comp.CodeWriter!, from, data, false, needReset);//TODO underflow
+                comp.CodeWriter!.CopyData(from, data, false, needReset);//TODO underflow
             }
             else
             {
-                comp.Memory.PushStack();
+                comp.Memory!.PushStack();
 
-                Bool overflow = comp.Memory.Add<Bool>(comp, comp.CodeWriter!, " underflow ");
-                Byte temp = comp.Memory.Add<Byte>(comp, comp.CodeWriter!, " temp ");
+                Bool overflow = comp.Memory!.Add<Bool>(" underflow ");
+                Byte temp = comp.Memory!.Add<Byte>(" temp ");
 
                 void Sub(short address, int remainingRecursive)
                 {
                     if (remainingRecursive > 0)
                     {
-                        comp.Move(comp.CodeWriter!, overflow.Address);
-                        comp.CodeWriter!.Write("[-]+", "set to 1");
+                        comp.CodeWriter!.Set(overflow.Address, 1, "set to 1");
 
-                        comp.Move(comp.CodeWriter!, address);
-                        comp.CodeWriter!.Write("[", "does not overflow");
-                        comp.Move(comp.CodeWriter!, overflow.Address);
-                        comp.CodeWriter!.Write("-", "set to 0");
+                        comp.CodeWriter!.IfKeep(address,
+                            () => comp.CodeWriter!.Add(overflow.Address, -1, "set to 0"),
+                            "does not overflow", "end not overflow", temp.Address);
 
-                        comp.MoveData(comp.CodeWriter!, address, temp.Address, false);
-
-                        comp.Move(comp.CodeWriter!, address);
-                        comp.CodeWriter!.Write("]", "end not overflow");
-
-                        comp.MoveData(comp.CodeWriter!, temp.Address, address, false);
-
-                        comp.Move(comp.CodeWriter!, overflow.Address);
-                        comp.CodeWriter!.Write("[", "if overflow");
-                        comp.CodeWriter!.Write("-", "set to 0");
-                        Sub((short)(address - 1), remainingRecursive - 1);
-                        comp.Move(comp.CodeWriter!, overflow.Address);
-                        comp.CodeWriter!.Write("]", "end overflow");
+                        comp.CodeWriter!.IfToZero(overflow.Address,
+                            () => Sub((short)(address - 1), remainingRecursive - 1),
+                            "if overflow", "end overflow");
                     }
 
-                    comp.Move(comp.CodeWriter!, address);
-                    comp.CodeWriter!.Write("-", "sub 1");
+                    comp.CodeWriter!.Add(address, -1, "sub 1");
                 }
 
                 byte[] value = amount(args[2]).Take(data.Size).ToArray();
@@ -188,7 +160,7 @@ namespace Compiler
                         Sub((short)(data.Address + data.Size - 1 - i), value.Length - 1 - i);
                 }
 
-                comp.Memory.PopStack(comp.CodeWriter!, needReset);
+                comp.Memory!.PopStack(needReset);
             }
         }
     }

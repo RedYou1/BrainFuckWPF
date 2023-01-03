@@ -53,28 +53,12 @@ namespace BrainFuck
                 string strAt = actionsFile.Substring(strPtr);
                 if (strAt.Length >= 3 &&
                     strAt[0] == '[' &&
-                    (strAt[1] == '-' || actionsFile[1] == '+') &&
+                    (strAt[1] == '-' || strAt[1] == '+') &&
                     strAt[2] == ']')
                 {
                     actionPtr++;
                     actions.Add((mainWindow) =>
                         mainWindow.BrainFuckBack.Set(0));
-                    strPtr += 2;
-                    continue;
-                }
-
-                if (strAt.Length >= 3 &&
-                    strAt[0] == '[' &&
-                    strAt[1] == '.' &&
-                    strAt[2] == ']')
-                {
-                    actionPtr++;
-                    actions.Add((mainWindow) =>
-                    {
-                        char current = (char)mainWindow.BrainFuckBack[mainWindow.BrainFuckBack.Ptr];
-                        if (current != 0)
-                            mainWindow.PrintChar(current);
-                    });
                     strPtr += 2;
                     continue;
                 }
@@ -170,7 +154,7 @@ namespace BrainFuck
                         {
                             int amount = amountInRow(actionsFile, ',', ref strPtr);
                             actions.Add((mainWindow) =>
-                            mainWindow.BrainFuckBack.Set(mainWindow.Input(amount)));
+                                mainWindow.BrainFuckBack.Set(mainWindow.Input(amount)));
                             actionPtr++;
                             break;
                         }

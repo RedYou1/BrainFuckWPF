@@ -18,12 +18,12 @@ namespace Compiler
         //Already got used but is at zero
         private List<Data> unUsed = new();
 
-        private Compiler Compiler;
+        private CodeWriter CodeWriter;
 
-        public Memory(Compiler comp)
+        public Memory(CodeWriter codeWriter)
         {
             memory.Push(new());
-            Compiler = comp;
+            CodeWriter = codeWriter;
         }
 
         public bool ContainName(string name)
@@ -46,18 +46,18 @@ namespace Compiler
             return true;
         }
 
-        public T Add<T>(Compiler comp, CodeWriter codeWriter, string name)
+        public T Add<T>(string name)
             where T : ValueType
         {
-            var type = comp.ValueTypes[typeof(T).Name];
-            return (T)Add(codeWriter, name, type.size, type.constructor);
+            var type = CodeWriter.Compiler.ValueTypes[typeof(T).Name];
+            return (T)Add(name, type.size, type.constructor);
         }
 
-        public T Add<T>(CodeWriter codeWriter, string name, short size, Func<short, Data> constructor)
+        public T Add<T>(string name, short size, Func<short, Data> constructor)
             where T : Data
-            => (T)Add(codeWriter, name, size, constructor);
+            => (T)Add(name, size, constructor);
 
-        public Data Add(CodeWriter codeWriter, string name, short size, Func<short, Data> constructor)
+        public Data Add(string name, short size, Func<short, Data> constructor)
         {
             if (nextMemory == 29999)
             {
@@ -85,8 +85,8 @@ namespace Compiler
                     AddToCurrent(name, v);
                     for (short i = v.Address; i < v.Address + size; i++)
                     {
-                        Compiler.Move(codeWriter, i);
-                        codeWriter.Write("[-]", "set to 0");
+                        CodeWriter.Move(i);
+                        CodeWriter.Write("[-]", "set to 0");
                     }
                     while (unUsed.Any(v => v.Address + v.Size == nextMemory))
                     {
@@ -108,15 +108,15 @@ namespace Compiler
             }
         }
 
-        void remove(CodeWriter codeWriter, bool needReset, string name)
+        void remove(bool needReset, string name)
         {
             Data v = current[name];
             if (needReset)
             {
                 for (short i = v.Address; i < v.Address + v.Size; i++)
                 {
-                    Compiler.Move(codeWriter, i);
-                    codeWriter.Write("[-]", "set to 0");
+                    CodeWriter.Move(i);
+                    CodeWriter.Write("[-]", "set to 0");
                 }
                 if (v.Address + v.Size == nextMemory)
                 {
@@ -155,14 +155,14 @@ namespace Compiler
             PushStack();
         }
 
-        public void PopFunc(CodeWriter codeWriter, bool needReset)
+        public void PopFunc(bool needReset)
         {
-            PopStack(codeWriter, needReset);
+            PopStack(needReset);
             memory.Pop();
         }
 
         public void PushStack() => name.Push(new());
-        public void PopStack(CodeWriter codeWriter, bool needReset)
+        public void PopStack(bool needReset)
         {
             if (name.TryPop(out var names))
             {
@@ -171,7 +171,7 @@ namespace Compiler
                     if (name.reference)
                         current.Remove(name.name);
                     else
-                        remove(codeWriter, needReset, name.name);
+                        remove(needReset, name.name);
                 }
             }
             else

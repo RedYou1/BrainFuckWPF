@@ -23,33 +23,51 @@ namespace Compiler
 
         public static void PrintString(Data data, Compiler comp, string[] args, bool needReset)
         {
-            comp.NeedCodeWriter();
+            comp.IsMainFile();
             CompileError.MinLength(args.Length, 2, "Need something to print");
+
+            comp.Memory!.PushStack();
+
+            Bool end = comp.Memory!.Add<Bool>(" endPrints ");
+            Bool tempEnd = comp.Memory!.Add<Bool>(" tempEndPrints ");
+            Byte temp = comp.Memory!.Add<Byte>(" tempPrints ");
 
             foreach (string arg in args.Skip(1))
             {
-                Data v = comp.Memory[arg];
+                Data v = comp.Memory![arg];
+                comp.CodeWriter!.Set(end.Address, 1, "check toPrint");
                 for (short i = v.Address; i < v.Address + v.Size; i++)
                 {
-                    comp.Move(comp.CodeWriter!, i);
-                    comp.CodeWriter!.Write("[.]", "prints");
+                    comp.CodeWriter!.IfKeep(end.Address, () =>
+                    {
+                        comp.CodeWriter!.IfKeep(i,
+                            () =>
+                            {
+                                comp.CodeWriter!.Move(i);
+                                comp.CodeWriter!.Write(".", "print");
+                                comp.CodeWriter!.Add(end.Address, 1, "end toPrint");
+                            }, $"check {i}", $"end check {i}", temp.Address);
+                        comp.CodeWriter!.Add(end.Address, -1, "end toPrint");
+                    }, "check toPrint", "end check toPrint", tempEnd.Address);
                 }
             }
+
+            comp.Memory!.PopStack(needReset);
         }
 
         public void Set(Data data, Compiler comp, string[] args, bool needReset)
         {
-            comp.NeedCodeWriter();
+            comp.IsMainFile();
 
             for (short i = Address; i < Address + Size; i++)
             {
-                comp.Move(comp.CodeWriter!, i);
+                comp.CodeWriter!.Move(i);
                 comp.CodeWriter!.Write("[-]", "reset Set");
             }
-            if (comp.Memory.ContainName(args[2]))
+            if (comp.Memory!.ContainName(args[2]))
             {
-                Data from = comp.Memory[args[2]];
-                comp.CopyData(comp.CodeWriter!, from, this, true, needReset);
+                Data from = comp.Memory![args[2]];
+                comp.CodeWriter!.CopyData(from, this, true, needReset);
             }
             else
             {
@@ -58,7 +76,7 @@ namespace Compiler
                     throw new Exception($"value {args[2]} dont fit in string of {Size}");
                 for (short i = 0; i < value.Length; i++)
                 {
-                    comp.Move(comp.CodeWriter!, (short)(Address + i));
+                    comp.CodeWriter!.Move((short)(Address + i));
                     comp.CodeWriter!.Write(new string('+', (byte)value[i]), $"set string {i} to {value[i]}");
                 }
             }

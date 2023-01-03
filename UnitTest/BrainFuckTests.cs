@@ -1,8 +1,5 @@
 using BrainFuck;
 using Compiler;
-using System.Numerics;
-using System.Runtime.InteropServices;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace UnitTest
 {
@@ -69,6 +66,7 @@ namespace UnitTest
 
             Random rand = new Random(420);
 
+            bool atLeastOne = false;
             int i = 0;
             Queue<byte[]> queue = new Queue<byte[]>();
 
@@ -85,14 +83,19 @@ namespace UnitTest
                 },
                 (amount) =>
                 {
+                    atLeastOne = true;
                     byte[] r = new byte[rand.Next(amount) + 1];
                     rand.NextBytes(r);
+                    r = r.TakeWhile(b => b != 0).ToArray();
                     queue.Enqueue(r);
                     return r;
                 });
 
             while (interpreter.CurrentActionsPtr < interpreter.CurrentActionsLength)
                 interpreter.Next();
+
+            Assert.IsTrue(atLeastOne);
+            Assert.IsFalse(queue.Any());
         }
 
         class Person

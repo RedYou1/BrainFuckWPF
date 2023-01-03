@@ -1,11 +1,4 @@
-﻿using System.Drawing;
-using System.Globalization;
-using System.IO;
-using System.Net;
-using System.Text.RegularExpressions;
-using System.Xml.Linq;
-
-namespace Compiler
+﻿namespace Compiler
 {
     public class Compiler
     {
@@ -39,7 +32,7 @@ namespace Compiler
                 if (resultPath != "")
                 {
                     sw = File.CreateText(resultPath);
-                    comp.CodeWriter = new CodeWriter(sw);
+                    comp.CodeWriter = new(sw, comp);
                 }
                 try
                 {
@@ -85,12 +78,10 @@ namespace Compiler
         {
             Path = path;
             if (streamWriter != null)
-                CodeWriter = new(streamWriter);
-            Memory = new(this);
-            Memory.PushStack();
+                CodeWriter = new(streamWriter, this);
         }
 
-        public void NeedCodeWriter()
+        public void IsMainFile()
         {
             CompileError.NotNull(CodeWriter, "Tried to do an action without being in the starting file .f");
         }
@@ -98,8 +89,7 @@ namespace Compiler
         public string Path { get; }
 
         public CodeWriter? CodeWriter { get; private set; }
-        public Memory Memory { get; }
-        public short actualPtr { get; protected set; } = 0;
+        public Memory? Memory => CodeWriter?.Memory;
 
         private static string[] getFileCommands(string file)
         {
@@ -229,94 +219,6 @@ namespace Compiler
             }
         }
 
-        public void Move(CodeWriter codeWriter, short moveTo)
-        {
-            if (moveTo != actualPtr)
-            {
-                codeWriter.Write(
-                    new string(moveTo > actualPtr ? '>' : '<',
-                    Math.Abs(moveTo - actualPtr)), $"move to {moveTo}");
-                actualPtr = moveTo;
-            }
-        }
-
-        public void CopyData(CodeWriter codeWriter, Data from, Data to, bool set2ToZero, bool needReset)
-        {
-            if (from.Address == to.Address)
-                return;
-            if (from.Size != to.Size)
-                throw new Exception("CopyData dont have the same size");
-
-            for (int i = 0; i < from.Size; i++)
-            {
-                CopyData(codeWriter, from.AddressArray[i], to.AddressArray[i], set2ToZero, needReset);
-            }
-        }
-
-        public void CopyData(CodeWriter codeWriter, short from, short to, bool set2ToZero, bool needReset)
-        {
-            if (from == to)
-                return;
-            if (set2ToZero)
-            {
-                if (to != actualPtr)
-                    Move(codeWriter, to);
-                codeWriter.Write("[-]", "reset to 0");
-            }
-            if (from != actualPtr)
-                Move(codeWriter, from);
-
-            Memory.PushStack();
-
-            Byte temp = Memory.Add<Byte>(this, codeWriter, " copyData ");
-
-            short moveAmountA = (short)Math.Abs(to - from);
-            bool dirA = to > from;
-            short moveAmountB = (short)Math.Abs(temp.Address - to);
-            bool dirB = temp.Address > to;
-            short moveAmountC = (short)Math.Abs(from - temp.Address);
-            bool dirC = from > temp.Address;
-            codeWriter.Write(
-                $"""
-                 [-{new string(dirA ? '>' : '<', moveAmountA)}
-                  +{new string(dirB ? '>' : '<', moveAmountB)}
-                  +{new string(dirC ? '>' : '<', moveAmountC)}]
-                 """, $"Duplicate data from {from} to {from} and {temp.Address}");
-            MoveData(codeWriter, temp.Address, from, false);
-
-            Memory.PopStack(codeWriter, needReset);
-        }
-
-        public void MoveData(CodeWriter codeWriter, Data from, Data to, bool set2ToZero)
-        {
-            if (from.Address == to.Address)
-                return;
-            if (from.Size != to.Size)
-                throw new CompileError(CompileError.ReturnCodeEnum.BadArgs, "MoveData dont have the same size");
-
-            for (int i = 0; i < from.Size; i++)
-            {
-                MoveData(codeWriter, from.AddressArray[i], to.AddressArray[i], set2ToZero);
-            }
-        }
-
-        public void MoveData(CodeWriter codeWriter, short from, short to, bool set2ToZero)
-        {
-            if (from == to)
-                return;
-            if (set2ToZero)
-            {
-                if (to != actualPtr)
-                    Move(codeWriter, to);
-                codeWriter.Write("[-]", "reset to 0");
-            }
-            if (from != actualPtr)
-                Move(codeWriter, from);
-            short moveAmount = (short)Math.Abs(to - from);
-            bool dir = to > from;
-            codeWriter.Write($"[-{new string(dir ? '>' : '<', moveAmount)}+{new string(dir ? '<' : '>', moveAmount)}]", $"Add between {from} and {to}");
-        }
-
         private void compileLine(string[] args, bool needReset)
         {
             switch (args[0])
@@ -333,40 +235,40 @@ namespace Compiler
                         break;
                     }
                 case "//":
-                    NeedCodeWriter();
+                    IsMainFile();
                     CodeWriter!.Write("", string.Join(' ', args.Skip(1).ToArray()));
                     break;
                 case "input":
                     {
-                        NeedCodeWriter();
+                        IsMainFile();
                         CompileError.MinLength(args.Length, 2, "input args: {name} {type or length default Char}");
 
                         if (args.Length == 2)
                         {
-                            if (Memory.ContainName(args[1]))
+                            if (Memory!.ContainName(args[1]))
                             {
-                                Data d = Memory[args[1]];
-                                Move(CodeWriter!, d.Address);
+                                Data d = Memory![args[1]];
+                                CodeWriter!.Move(d.Address);
                                 CodeWriter!.Write(new string(',', d.Size), $"input for variable {args[1]}");
                             }
                             else
                             {
-                                Char v = Memory.Add<Char>(this, CodeWriter!, args[1]);
-                                Move(CodeWriter!, v.Address);
+                                Char v = Memory!.Add<Char>(args[1]);
+                                CodeWriter!.Move(v.Address);
                                 CodeWriter!.Write(",", "input");
                             }
                         }
                         else if (short.TryParse(args[2], out short amount))
                         {
-                            String s = Memory.Add<String>(CodeWriter!, args[1], amount, String.ConstructorOf(amount));
-                            Move(CodeWriter!, s.Address);
+                            String s = Memory!.Add<String>(args[1], amount, String.ConstructorOf(amount));
+                            CodeWriter!.Move(s.Address);
                             CodeWriter!.Write(new string(',', amount), "input");
                         }
                         else if (ValueTypes.ContainsKey(args[2]))
                         {
                             var t = ValueTypes[args[2]];
-                            Data d = Memory.Add(CodeWriter!, args[1], t.size, t.constructor);
-                            Move(CodeWriter!, d.Address);
+                            Data d = Memory!.Add(args[1], t.size, t.constructor);
+                            CodeWriter!.Move(d.Address);
                             CodeWriter!.Write(new string(',', t.size), "input");
                         }
                         else
@@ -377,48 +279,44 @@ namespace Compiler
                     }
                 case "unsafe":
                     {
-                        NeedCodeWriter();
+                        IsMainFile();
                         CompileError.MinLength(args.Length, 3, "structure: unsafe {name or ptr}\n{\n}");
 
                         short address;
-                        if (Memory.ContainName(args[1]))
-                            address = Memory[args[1]].Address;
+                        if (Memory!.ContainName(args[1]))
+                            address = Memory![args[1]].Address;
                         else if (!short.TryParse(args[1], out address))
                             throw new CompileError(CompileError.ReturnCodeEnum.BadArgs, "structure: unsafe {name or ptr}\n{\n}");
 
-                        Move(CodeWriter!, address);
+                        CodeWriter!.Move(address);
                         CodeWriter!.Write(string.Join("", args[2].Skip(1)),
                             $"unsafe {address}");
                         break;
                     }
                 case "while":
                     {
-                        NeedCodeWriter();
+                        IsMainFile();
                         CompileError.MinLength(args.Length, 3, "structure: while {name}\n{\n}");
 
-                        short address = Memory[args[1]].Address;
-                        Move(CodeWriter!, address);
-                        CodeWriter!.Write("[", $"check {address}");
-                        Memory.PushStack();
-                        try
+                        CodeWriter!.While(Memory![args[1]].Address, () =>
                         {
-                            Compile(getFileCommands(new string(args[2].Skip(1).ToArray()).Replace((char)2, ' ')), this, true);
-                        }
-                        catch (CompileError e)
-                        {
-                            e.AddMessage($"while {args[1]}");
-                            throw e;
-                        }
-                        Memory.PopStack(CodeWriter, true);
-                        Move(CodeWriter, address);
-                        CodeWriter.Write("]", $"end of {address}");
+                            try
+                            {
+                                Compile(getFileCommands(new string(args[2].Skip(1).ToArray()).Replace((char)2, ' ')), this, true);
+                            }
+                            catch (CompileError e)
+                            {
+                                e.AddMessage($"while {args[1]}");
+                                throw e;
+                            }
+                        });
                         break;
                     }
                 case "foreach":
                     {
-                        NeedCodeWriter();
+                        IsMainFile();
                         CompileError.MinLength(args.Length, 4, "structure: foreach {arrayName} {elementName}\n{\n}");
-                        if (!Memory.ContainName(args[1]) || Memory[args[1]] is not Array arr)
+                        if (!Memory!.ContainName(args[1]) || Memory![args[1]] is not Array arr)
                             throw new CompileError(CompileError.ReturnCodeEnum.BadArgs, $"foreach arrayName ({args[1]}) doesn't exists or isn't an array");
 
                         string[] commands = getFileCommands(new string(args[3].Skip(1).ToArray()).Replace((char)2, ' '));
@@ -426,8 +324,8 @@ namespace Compiler
                         for (short i = 0; i < arr.Amount; i++)
                         {
                             Data element = arr.Get(i);
-                            Memory.PushStack();
-                            Memory.AddToCurrent(args[2], element, true);
+                            Memory!.PushStack();
+                            Memory!.AddToCurrent(args[2], element, true);
                             try
                             {
                                 Compile(commands, this, true);
@@ -437,35 +335,27 @@ namespace Compiler
                                 e.AddMessage($"foreach {args[1]} {args[2]}");
                                 throw e;
                             }
-                            Memory.PopStack(CodeWriter!, i + 1 == arr.Amount ? needReset : true);
+                            Memory!.PopStack(i + 1 == arr.Amount ? needReset : true);
                         }
                         break;
                     }
                 case "if":
                     {
-                        NeedCodeWriter();
+                        IsMainFile();
                         CompileError.MinLength(args.Length, 3, "structure: if {name}\n{\n}");
 
-                        var d = Memory[args[1]];
-                        Move(CodeWriter!, d.Address);
-                        CodeWriter!.Write("[", $"check {d.Address}");
-                        Memory.PushStack();
-
-                        try
+                        CodeWriter!.IfKeep(Memory![args[1]].Address, () =>
                         {
-                            Compile(getFileCommands(new string(args[2].Skip(1).ToArray()).Replace((char)2, ' ')), this, needReset);
-                        }
-                        catch (CompileError e)
-                        {
-                            e.AddMessage($"if {args[1]}");
-                            throw e;
-                        }
-                        Data d2 = Memory.Add(CodeWriter, " if ", d.Size, (address) => new Data(address, d.Size));
-                        MoveData(CodeWriter!, d, d2, false);
-                        Move(CodeWriter, d.Address);
-                        CodeWriter.Write("]", $"end of {d.Address}");
-                        MoveData(CodeWriter!, d2, d, false);
-                        Memory.PopStack(CodeWriter, needReset);
+                            try
+                            {
+                                Compile(getFileCommands(new string(args[2].Skip(1).ToArray()).Replace((char)2, ' ')), this, needReset);
+                            }
+                            catch (CompileError e)
+                            {
+                                e.AddMessage($"if {args[1]}");
+                                throw e;
+                            }
+                        }, $"check {args[1]}", $"end of {args[1]}", needReset);
                         break;
                     }
                 case "struct":
@@ -527,7 +417,7 @@ namespace Compiler
                     {
                         CompileError.MinLength(args.Length, 3, "structure: func {name} ({type} {name})\n{\n}");
                         if (args.Length % 2 == 0)
-                            throw new CompileError(CompileError.ReturnCodeEnum.BadArgs, "structure: func {name} ({type} {name}) at least one\n{\n}");
+                            throw new CompileError(CompileError.ReturnCodeEnum.BadArgs, "structure: func {name} ({type} {name})\n{\n}");
 
                         string[] to = new string[(args.Length - 3) / 2];
                         for (int i = 3; i < args.Length - 1; i += 2)
@@ -535,9 +425,9 @@ namespace Compiler
                             to[(i - 3) / 2] = args[i];
                         }
                         BFFunctions.Add(args[1], new BFFunction(args.Length / 2 - 1,
-                            (Compiler comp, CodeWriter codeWriter, string[] args2, bool needReset) =>
+                            (CodeWriter codeWriter, string[] args2, bool needReset) =>
                         {
-                            comp.Memory.PushFunc(args2, to);
+                            codeWriter.Memory.PushFunc(args2, to);
                             try
                             {
                                 Compile(getFileCommands(new string(args[args.Length - 1].Skip(1).ToArray()).Replace((char)2, ' ')), this, needReset);
@@ -547,13 +437,13 @@ namespace Compiler
                                 e.AddMessage($"func {args[1]}");
                                 throw e;
                             }
-                            comp.Memory.PopFunc(codeWriter, needReset);
+                            codeWriter.Memory.PopFunc(needReset);
                         }));
                         break;
                     }
                 case "call":
                     {
-                        NeedCodeWriter();
+                        IsMainFile();
                         CompileError.MinLength(args.Length, 2, "structure: call {name} {args}");
                         if (!BFFunctions.ContainsKey(args[1]))
                             throw new CompileError(CompileError.ReturnCodeEnum.BadArgs, $"function {args[1]} doesn't exists.");
@@ -564,7 +454,7 @@ namespace Compiler
 
                         try
                         {
-                            func.Action(this, CodeWriter!, args.Skip(2).ToArray(), needReset);
+                            func.Action(CodeWriter!, args.Skip(2).ToArray(), needReset);
                         }
                         catch (CompileError e)
                         {
@@ -579,9 +469,9 @@ namespace Compiler
                         DataTypes[args[0]].Invoke(this, args, needReset);
                         return;
                     }
-                    if (Memory.ContainName(args[1]))
+                    if (CodeWriter is not null && Memory!.ContainName(args[1]))
                     {
-                        Data d = Memory[args[1]];
+                        Data d = Memory![args[1]];
                         if (d.BuildInFunction.ContainsKey(args[0]))
                         {
                             d.BuildInFunction[args[0]].Invoke(d, this, args, needReset);
