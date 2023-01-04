@@ -14,6 +14,8 @@
             if (comp == null)
                 comp = new Compiler(sourcePath, null);
 
+            comp.Includes.Push(System.IO.Path.GetFileName(startingFile));
+
             if (File.Exists(startingFile + ".b"))
             {
                 try
@@ -47,6 +49,8 @@
                     sw?.Close();
                 }
             }
+
+            comp.Includes.Pop();
 
             return null;
         }
@@ -85,6 +89,8 @@
         {
             CompileError.NotNull(CodeWriter, "Tried to do an action without being in the starting file .f");
         }
+
+        public Stack<string> Includes = new();
 
         public string Path { get; }
 
@@ -225,7 +231,9 @@
             {
                 case "include":
                     {
-                        CompileError.MinLength(args.Length, 2, "Need sometging to include");
+                        CompileError.MinLength(args.Length, 2, "Need something to include");
+                        if (Includes.Contains(args[1]))
+                            throw new CompileError(CompileError.ReturnCodeEnum.BadArgs, $"{Includes.Peek()} tried to include already in stack {args[1]}");
                         CompileError? c = Compile(Path, Path + args[1], "", this);
                         if (c is not null)
                         {
