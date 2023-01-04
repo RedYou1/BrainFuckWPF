@@ -78,6 +78,17 @@ namespace Compiler
             }
             else
             {
+                byte[] value = amount(args[2]).Take(data.Size).ToArray();
+
+                short address = (short)(data.Address + data.Size - 1);
+
+                if (value.Length == 1)
+                {
+                    comp.CodeWriter!.Add(address, value[0], $"add {value[0]}");
+                    return;
+                }
+
+
                 comp.Memory!.PushStack();
 
                 Bool overflow = comp.Memory!.Add<Bool>(" overflow ");
@@ -101,12 +112,14 @@ namespace Compiler
                     }
                 }
 
-                byte[] value = amount(args[2]).Take(data.Size).ToArray();
+                int remainingRecursive = value.Length - 1;
 
-                for (int i = 0; i < value.Length; i++)
+                for (int i = 0; i < value.Length; i++, remainingRecursive--, address--)
                 {
                     for (int y = 0; y < value[i]; y++)
-                        Add((short)(data.Address + data.Size - 1 - i), value.Length - 1 - i);
+                    {
+                        Add(address, remainingRecursive);
+                    }
                 }
 
                 comp.Memory!.PopStack(needReset);
@@ -129,6 +142,16 @@ namespace Compiler
             }
             else
             {
+                byte[] value = amount(args[2]).Take(data.Size).ToArray();
+
+                short address = (short)(data.Address + data.Size - 1);
+
+                if (value.Length == 1)
+                {
+                    comp.CodeWriter!.Add(address, -value[0], $"sub {value[0]}");
+                    return;
+                }
+
                 comp.Memory!.PushStack();
 
                 Bool overflow = comp.Memory!.Add<Bool>(" underflow ");
@@ -152,12 +175,12 @@ namespace Compiler
                     comp.CodeWriter!.Add(address, -1, "sub 1");
                 }
 
-                byte[] value = amount(args[2]).Take(data.Size).ToArray();
+                int remainingRecursive = value.Length - 1;
 
-                for (int i = 0; i < value.Length; i++)
+                for (int i = 0; i < value.Length; i++, remainingRecursive--, address--)
                 {
                     for (int y = 0; y < value[i]; y++)
-                        Sub((short)(data.Address + data.Size - 1 - i), value.Length - 1 - i);
+                        Sub(address, remainingRecursive);
                 }
 
                 comp.Memory!.PopStack(needReset);
