@@ -214,16 +214,13 @@ namespace BrainFuck
             while (actionsFile.Length > strPtr + 1)
             {
                 char next = actionsFile[strPtr + 1];
-                if (Actions.Contains(next))
+                if (next == command)
                 {
-                    if (next == command)
-                    {
-                        result++;
-                    }
-                    else
-                    {
-                        return result;
-                    }
+                    result++;
+                }
+                else
+                {
+                    return result;
                 }
                 strPtr++;
             }
