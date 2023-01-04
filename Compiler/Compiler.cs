@@ -243,33 +243,38 @@
                         IsMainFile();
                         CompileError.MinLength(args.Length, 2, "input args: {name} {type or length default Char}");
 
+                        void Input(short address, short amount, string description)
+                        {
+                            for (short i = address; i < address + amount; i++)
+                            {
+                                CodeWriter!.Move(i);
+                                CodeWriter!.Write(",", $" {i - address + 1}/{amount} {description}");
+                            }
+                        }
+
                         if (args.Length == 2)
                         {
                             if (Memory!.ContainName(args[1]))
                             {
                                 Data d = Memory![args[1]];
-                                CodeWriter!.Move(d.Address);
-                                CodeWriter!.Write(new string(',', d.Size), $"input for variable {args[1]}");
+                                Input(d.Address, d.Size, $"input for variable {args[1]}");
                             }
                             else
                             {
                                 Char v = Memory!.Add<Char>(args[1]);
-                                CodeWriter!.Move(v.Address);
-                                CodeWriter!.Write(",", "input");
+                                Input(v.Address, v.Size, "input char");
                             }
                         }
                         else if (short.TryParse(args[2], out short amount))
                         {
                             String s = Memory!.Add<String>(args[1], amount, String.ConstructorOf(amount));
-                            CodeWriter!.Move(s.Address);
-                            CodeWriter!.Write(new string(',', amount), "input");
+                            Input(s.Address, amount, "input string");
                         }
                         else if (ValueTypes.ContainsKey(args[2]))
                         {
                             var t = ValueTypes[args[2]];
                             Data d = Memory!.Add(args[1], t.size, t.constructor);
-                            CodeWriter!.Move(d.Address);
-                            CodeWriter!.Write(new string(',', t.size), "input");
+                            Input(d.Address, d.Size, $"input {d.GetType().Name}");
                         }
                         else
                         {

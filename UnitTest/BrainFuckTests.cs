@@ -127,19 +127,31 @@ namespace UnitTest
                 (output) => Result.Add((byte)output),
                 (amount) =>
                 {
-                    if (i < persons.Length)
+                    List<byte> bytes = new();
+                    while (amount > 0)
                     {
-                        byte[] r = new byte[2] { persons[i].Age, (byte)(persons[i].IsAlive ? 1 : 0) };
-                        i++;
-                        return r;
+                        if (i < persons.Length)
+                        {
+                            bytes.Add(persons[i].Age);
+                            bytes.Add((byte)(persons[i].IsAlive ? 1 : 0));
+                            i++;
+                            amount -= 2;
+                            continue;
+                        }
+                        else if (i == persons.Length)
+                        {
+                            bytes.Add(100);
+                            i++;
+                            amount--;
+                            continue;
+                        }
+                        else
+                        {
+                            Assert.Fail();
+                            return new byte[0];
+                        }
                     }
-                    if (i == persons.Length)
-                    {
-                        i++;
-                        return new byte[1] { 100 };
-                    }
-                    Assert.Fail();
-                    return new byte[0];
+                    return bytes.ToArray();
                 });
 
             while (interpreter.CurrentActionsPtr < interpreter.CurrentActionsLength)

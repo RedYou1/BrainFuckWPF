@@ -107,7 +107,7 @@ namespace BrainFuck
                     }
                 }
 
-                switch (actionsFile[strPtr])
+                switch (strAt[0])
                 {
                     case '>':
                         {
@@ -152,9 +152,33 @@ namespace BrainFuck
                         break;
                     case ',':
                         {
-                            int amount = amountInRow(actionsFile, ',', ref strPtr);
+                            short amount = 1;
+                            while (true)
+                            {
+                                if (strAt[1] == '>' && strAt[2] == ',')
+                                {
+                                    amount++;
+                                    strPtr += 2;
+                                    strAt = actionsFile.Substring(strPtr);
+                                }
+                                else if (strAt[1] == ',')
+                                {
+                                    strPtr++;
+                                    strAt = actionsFile.Substring(strPtr);
+                                }
+                                else
+                                {
+                                    break;
+                                }
+                            }
                             actions.Add((mainWindow) =>
-                                mainWindow.BrainFuckBack.Set(mainWindow.Input(amount)));
+                            {
+                                byte[] input = mainWindow.Input(amount);
+                                if (input.Length > amount)
+                                    throw new Exception("Input too large");
+                                mainWindow.BrainFuckBack.Set(input);
+                                mainWindow.BrainFuckBack.Next((short)(amount - 1));
+                            });
                             actionPtr++;
                             break;
                         }
