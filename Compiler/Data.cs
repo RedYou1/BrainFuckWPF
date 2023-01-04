@@ -13,15 +13,13 @@ namespace Compiler
         public short Address { get; }
         public short Size { get; }
 
-        public Dictionary<string, Action<Data, Compiler, string[], bool>> BuildInFunction { get; } = new();
+        public virtual string Name => GetType().Name;
 
         public Data(short address, short size)
         {
             Address = address;
             Size = size;
             AddressArray = Enumerable.Range(Address, Size).Select(x => (short)x).ToArray();
-            BuildInFunction.Add(BuildInFunctions.Print, Print);
-            BuildInFunction.Add(BuildInFunctions.Move, Move);
         }
 
         public readonly short[] AddressArray;
@@ -65,7 +63,7 @@ namespace Compiler
             T v = comp.Memory!.Add<T>(args[1]);
             if (args.Length >= 3)
             {
-                v.BuildInFunction[BuildInFunctions.Init](v, comp, new string[] { "", "", args[2] }, needReset);
+                comp.DataTypes[v.Name].Functions[BuildInFunctions.Init](v, comp, new string[] { "", "", args[2] }, needReset);
             }
         }
 
@@ -85,7 +83,7 @@ namespace Compiler
                     ValueType v = t.constructor((short)(s.Address + i));
                     try
                     {
-                        v.BuildInFunction[BuildInFunctions.Add](v, comp, new string[] { "", "", args[4 + i] }, needReset);
+                        comp.DataTypes[v.Name].Functions[BuildInFunctions.Add](v, comp, new string[] { "", "", args[4 + i] }, needReset);
                     }
                     catch (CompileError e)
                     {
@@ -129,6 +127,7 @@ namespace Compiler
 
             var t = comp.ValueTypes[args[0]];
             Struct v = comp.Memory!.Add<Struct>(args[1], t.size, t.constructor);
+            v.name = args[0];
 
             CompileError.MinLength(args.Length, 2 + v.Datas.Length, $"Data.StructInit min length with args");
 
@@ -136,7 +135,7 @@ namespace Compiler
             {
                 try
                 {
-                    v.Datas[i].data.BuildInFunction[BuildInFunctions.Set]
+                    comp.DataTypes[v.Datas[i].data.Name].Functions[BuildInFunctions.Set]
                     (v.Datas[i].data, comp, new string[] { "", "", args[2 + i] }, needReset);
                 }
                 catch (CompileError e)

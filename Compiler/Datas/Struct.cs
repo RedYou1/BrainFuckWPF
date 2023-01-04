@@ -9,6 +9,9 @@ namespace Compiler
 {
     public class Struct : ValueType, Container
     {
+        public string? name;
+        public override string Name => name!;
+
         public (string name, Data data)[] Datas { get; }
 
         public Struct(short address, (string name, Data data)[] datas)

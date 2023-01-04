@@ -37,6 +37,7 @@ add persons.1."age" 24;
 add persons.1."genre" 'F';
 add persons.1."other" 'T';
 print persons;
+print persons.0 persons.1;
 foreach persons person
 {
     print person."genre";

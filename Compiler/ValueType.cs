@@ -12,10 +12,7 @@ namespace Compiler
 {
     public class ValueType : Data
     {
-        public ValueType(short address, short size) : base(address, size)
-        {
-            BuildInFunction.Add(BuildInFunctions.Set, Set);
-        }
+        public ValueType(short address, short size) : base(address, size) { }
 
         public static void Set(Data data, Compiler comp, string[] args, bool needReset)
         {
@@ -27,7 +24,7 @@ namespace Compiler
             }
             try
             {
-                data.BuildInFunction[BuildInFunctions.Init](data, comp, args, needReset);
+                comp.DataTypes[data.Name].Functions[BuildInFunctions.Init](data, comp, args, needReset);
             }
             catch (CompileError e)
             {

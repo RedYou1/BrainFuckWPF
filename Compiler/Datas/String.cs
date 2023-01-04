@@ -11,11 +11,7 @@ namespace Compiler
     public class String : Array
     {
         public String(short address, short elementSize, short amount)
-            : base(address, elementSize, amount, Char.Constructor)
-        {
-            BuildInFunction.Add(BuildInFunctions.PrintString, PrintString);
-            BuildInFunction.Add(BuildInFunctions.Set, Set);
-        }
+            : base(address, elementSize, amount, Char.Constructor) { }
 
         public static Func<short, String> ConstructorOf(short amount)
             => (address) => new String(address, Char.BytesSize, amount);
@@ -55,11 +51,11 @@ namespace Compiler
             comp.Memory!.PopStack(needReset);
         }
 
-        public void Set(Data data, Compiler comp, string[] args, bool needReset)
+        public static void Set(Data data, Compiler comp, string[] args, bool needReset)
         {
             comp.IsMainFile();
 
-            for (short i = Address; i < Address + Size; i++)
+            for (short i = data.Address; i < data.Address + data.Size; i++)
             {
                 comp.CodeWriter!.Move(i);
                 comp.CodeWriter!.Write("[-]", "reset Set");
@@ -67,16 +63,16 @@ namespace Compiler
             if (comp.Memory!.ContainName(args[2]))
             {
                 Data from = comp.Memory![args[2]];
-                comp.CodeWriter!.CopyData(from, this, true, needReset);
+                comp.CodeWriter!.CopyData(from, data, true, needReset);
             }
             else
             {
                 string value = GetValue(args[2]);
-                if (value.Length > Size)
-                    throw new Exception($"value {args[2]} dont fit in string of {Size}");
+                if (value.Length > data.Size)
+                    throw new Exception($"value {args[2]} dont fit in string of {data.Size}");
                 for (short i = 0; i < value.Length; i++)
                 {
-                    comp.CodeWriter!.Move((short)(Address + i));
+                    comp.CodeWriter!.Move((short)(data.Address + i));
                     comp.CodeWriter!.Write(new string('+', (byte)value[i]), $"set string {i} to {value[i]}");
                 }
             }

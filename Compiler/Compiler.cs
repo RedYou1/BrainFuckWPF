@@ -1,4 +1,6 @@
-﻿namespace Compiler
+﻿using System.Collections.Generic;
+
+namespace Compiler
 {
     public class Compiler
     {
@@ -57,16 +59,18 @@
 
         public Dictionary<string, BFFunction> BFFunctions { get; } = new();
 
-        public Dictionary<string, Action<Compiler, string[], bool>> DataTypes =
-        new(){
-            { nameof(Bool), Data.DefaultInit<Bool> },
-            { nameof(Byte), Data.DefaultInit<Byte> },
-            { nameof(Char), Data.DefaultInit<Char> },
-            { nameof(Short), Data.DefaultInit<Short> },
-            { nameof(Int), Data.DefaultInit<Int> },
+        public Dictionary<string,
+                (Action<Compiler, string[], bool> Init,
+                Dictionary<string, Action<Data, Compiler, string[], bool>> Functions)>
+            DataTypes = new(){
+            { nameof(Bool), (Data.DefaultInit<Bool>,new(){ { BuildInFunctions.Print, Data.Print }, { BuildInFunctions.Move, Data.Move },{ BuildInFunctions.Set, ValueType.Set }, { BuildInFunctions.Init, Bool.Init },{ BuildInFunctions.Add, Bool.Add },{ BuildInFunctions.Sub, Bool.Sub } }) },
+            { nameof(Byte), (Data.DefaultInit<Byte>,new(){{ BuildInFunctions.Print, Data.Print }, { BuildInFunctions.Move, Data.Move },{ BuildInFunctions.Set, ValueType.Set }, { BuildInFunctions.Init, Byte.Init },{ BuildInFunctions.Add, Byte.Add },{ BuildInFunctions.Sub, Byte.Sub }}) },
+            { nameof(Char), (Data.DefaultInit<Char>,new(){{ BuildInFunctions.Print, Data.Print }, { BuildInFunctions.Move, Data.Move },{ BuildInFunctions.Set, ValueType.Set }, { BuildInFunctions.Init, Char.Init },{ BuildInFunctions.Add, Char.Add },{ BuildInFunctions.Sub, Char.Sub }}) },
+            { nameof(Short), (Data.DefaultInit<Short>,new(){{ BuildInFunctions.Print, Data.Print }, { BuildInFunctions.Move, Data.Move },{ BuildInFunctions.Set, ValueType.Set }, { BuildInFunctions.Init, Short.Init },{ BuildInFunctions.Add, Short.Add },{ BuildInFunctions.Sub, Short.Sub }}) },
+            { nameof(Int), (Data.DefaultInit<Int>,new(){{ BuildInFunctions.Print, Data.Print }, { BuildInFunctions.Move, Data.Move },{ BuildInFunctions.Set, ValueType.Set }, { BuildInFunctions.Init, Int.Init },{ BuildInFunctions.Add, Int.Add },{ BuildInFunctions.Sub, Int.Sub }}) },
 
-            { nameof(Array), Data.ArrayInit },
-            { nameof(String), Data.StringInit },
+            { nameof(Array), (Data.ArrayInit,new(){{ BuildInFunctions.Print, Data.Print }, { BuildInFunctions.Move, Data.Move }}) },
+            { nameof(String), (Data.StringInit,new(){{ BuildInFunctions.Print, Data.Print }, { BuildInFunctions.Move, Data.Move },{ BuildInFunctions.Set, String.Set },{ BuildInFunctions.PrintString, String.PrintString } }) },
         };
 
         public Dictionary<string, (short size, Func<short, ValueType> constructor)> ValueTypes =
@@ -406,7 +410,7 @@
 
                             datas.Add(args[i + 1], constructor);
                         }
-                        DataTypes.Add(args[1], Data.StructInit);
+                        DataTypes.Add(args[1], (Data.StructInit, new() { { BuildInFunctions.Print, Data.Print }, { BuildInFunctions.Move, Data.Move } }));
 
                         if (size != -1)
                         {
@@ -420,7 +424,7 @@
                                     sdatas.Add((e.Key, d));
                                     i += d.Size;
                                 }
-                                return new Struct(address, sdatas.ToArray());
+                                return new Struct(address, sdatas.ToArray()) { name = args[1] };
                             }
                             ));
                         }
@@ -479,15 +483,16 @@
                 default:
                     if (DataTypes.ContainsKey(args[0]))
                     {
-                        DataTypes[args[0]].Invoke(this, args, needReset);
+                        DataTypes[args[0]].Init.Invoke(this, args, needReset);
                         return;
                     }
                     if (CodeWriter is not null && Memory!.ContainName(args[1]))
                     {
                         Data d = Memory![args[1]];
-                        if (d.BuildInFunction.ContainsKey(args[0]))
+                        var functions = DataTypes[d.Name].Functions;
+                        if (functions.ContainsKey(args[0]))
                         {
-                            d.BuildInFunction[args[0]].Invoke(d, this, args, needReset);
+                            functions[args[0]].Invoke(d, this, args, needReset);
                             return;
                         }
                     }

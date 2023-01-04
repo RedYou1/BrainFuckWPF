@@ -13,14 +13,9 @@ namespace Compiler
     public class Byte : ValueType
     {
         public const short BytesSize = 1;
-        public Byte(short address, short size) : base(address, BytesSize)
-        {
-            BuildInFunction.Add(BuildInFunctions.Init, Init);
-            BuildInFunction.Add(BuildInFunctions.Add, Add);
-            BuildInFunction.Add(BuildInFunctions.Sub, Sub);
-        }
+        public Byte(short address, short size = BytesSize) : base(address, BytesSize) { }
 
-        public static Byte Constructor(short address) => new Byte(address, BytesSize);
+        public static Byte Constructor(short address) => new Byte(address);
 
         public static void Init(Data self, Compiler comp, string[] args, bool needReset)
             => BaseInit<Byte>((s) => new byte[] { GetValue(s) }, self, comp, args, needReset);

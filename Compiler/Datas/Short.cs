@@ -11,14 +11,9 @@ namespace Compiler
     public class Short : ValueType
     {
         public const short BytesSize = 2;
-        public Short(short address, short size) : base(address, BytesSize)
-        {
-            BuildInFunction.Add(BuildInFunctions.Init, Init);
-            BuildInFunction.Add(BuildInFunctions.Add, Add);
-            BuildInFunction.Add(BuildInFunctions.Sub, Sub);
-        }
+        public Short(short address, short size = BytesSize) : base(address, BytesSize) { }
 
-        public static Short Constructor(short address) => new Short(address, BytesSize);
+        public static Short Constructor(short address) => new Short(address);
 
         public static void Init(Data self, Compiler comp, string[] args, bool needReset)
            => BaseInit<Short>((s) => BitConverter.GetBytes(GetValue(s)), self, comp, args, needReset);

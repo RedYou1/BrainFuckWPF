@@ -13,14 +13,9 @@ namespace Compiler
     public class Char : ValueType
     {
         public const short BytesSize = 1;
-        public Char(short address, short size) : base(address, BytesSize)
-        {
-            BuildInFunction.Add(BuildInFunctions.Init, Init);
-            BuildInFunction.Add(BuildInFunctions.Add, Add);
-            BuildInFunction.Add(BuildInFunctions.Sub, Sub);
-        }
+        public Char(short address, short size = BytesSize) : base(address, BytesSize) { }
 
-        public static Char Constructor(short address) => new Char(address, BytesSize);
+        public static Char Constructor(short address) => new Char(address);
 
         public static void Init(Data self, Compiler comp, string[] args, bool needReset)
             => BaseInit<Char>((s) => new byte[] { Byte.GetValue(s) }, self, comp, args, needReset);

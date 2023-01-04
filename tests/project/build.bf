@@ -138,6 +138,18 @@
 . //print
 > //move to 29
 . //print
+<<<<< //move to 24
+. //print
+> //move to 25
+. //print
+> //move to 26
+. //print
+> //move to 27
+. //print
+> //move to 28
+. //print
+> //move to 29
+. //print
 <<<< //move to 25
 . //print
 >>> //move to 28

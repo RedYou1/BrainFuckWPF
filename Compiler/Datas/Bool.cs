@@ -13,14 +13,9 @@ namespace Compiler
     public class Bool : ValueType
     {
         public const short BytesSize = 1;
-        public Bool(short address, short size) : base(address, BytesSize)
-        {
-            BuildInFunction.Add(BuildInFunctions.Init, Init);
-            BuildInFunction.Add(BuildInFunctions.Add, Add);
-            BuildInFunction.Add(BuildInFunctions.Sub, Sub);
-        }
+        public Bool(short address, short size = BytesSize) : base(address, BytesSize) { }
 
-        public static Bool Constructor(short address) => new Bool(address, BytesSize);
+        public static Bool Constructor(short address) => new Bool(address);
 
         public static void Init(Data self, Compiler comp, string[] args, bool needReset)
             => BaseInit<Bool>(GetValuesByte, self, comp, args, needReset);

@@ -11,14 +11,9 @@ namespace Compiler
     public class Int : ValueType
     {
         public const short BytesSize = 4;
-        public Int(short address, short size) : base(address, BytesSize)
-        {
-            BuildInFunction.Add(BuildInFunctions.Init, Init);
-            BuildInFunction.Add(BuildInFunctions.Add, Add);
-            BuildInFunction.Add(BuildInFunctions.Sub, Sub);
-        }
+        public Int(short address, short size = BytesSize) : base(address, BytesSize) { }
 
-        public static Int Constructor(short address) => new Int(address, BytesSize);
+        public static Int Constructor(short address) => new Int(address);
 
         public static void Init(Data self, Compiler comp, string[] args, bool needReset)
             => BaseInit<Int>((s) => BitConverter.GetBytes(GetValue(s)), self, comp, args, needReset);
