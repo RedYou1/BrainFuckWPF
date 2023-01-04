@@ -48,5 +48,5 @@ Byte i 1;
 while i
 {
     print i;
-    call testFunc i;
+    testFunc i;
 }

@@ -456,6 +456,31 @@ namespace Compiler
                             }
                             codeWriter.Memory.PopFunc(needReset);
                         }));
+                        if (args.Length > 3)
+                        {
+                            DataTypes[args[2]].Functions.Add(args[1],
+                                (Data data, Compiler comp, string[] args2, bool needReset) =>
+                            {
+                                comp.IsMainFile();
+                                CompileError.MinLength(args2.Length, 2, "structure: {funcName} {objectName} {args}");
+                                if (!comp.BFFunctions.ContainsKey(args2[0]))
+                                    throw new CompileError(CompileError.ReturnCodeEnum.BadArgs, $"function {args2[0]} doesn't exists.");
+
+                                BFFunction func = comp.BFFunctions[args2[0]];
+                                if (args2.Length < 1 + func.NumberArgs)
+                                    throw new CompileError(CompileError.ReturnCodeEnum.BadArgs, $"bad amount of args for the function {args2[0]}.");
+
+                                try
+                                {
+                                    func.Action(comp.CodeWriter!, args2.Skip(1).ToArray(), needReset);
+                                }
+                                catch (CompileError e)
+                                {
+                                    e.AddMessage(string.Join(' ', args2));
+                                    throw e;
+                                }
+                            });
+                        }
                         break;
                     }
                 case "call":

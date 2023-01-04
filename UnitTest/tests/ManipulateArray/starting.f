@@ -10,7 +10,7 @@ while yearPassed
 {
     foreach persons p
     {
-        call NewYear p;
+        NewYear p;
     }
     sub yearPassed 1;
 }
